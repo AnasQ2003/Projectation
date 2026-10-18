@@ -55,6 +55,7 @@ export default function App() {
     localStorage.removeItem('projectation_user');
     setUser(null);
     setSelectedProjectId(null);
+    setShowSplash(true);
   };
 
   // If initial splash is active, show the splash loading screen
@@ -110,11 +111,24 @@ export default function App() {
             <Dashboard
               onSelectProject={(id) => setSelectedProjectId(id)}
               searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
               showNewProjectModal={showNewProjectModal}
               setShowNewProjectModal={setShowNewProjectModal}
+              onProjectsLoaded={(count) => setTotalProjectsCount(count)}
             />
           )}
         </main>
+
+        {/* Global Create Project Modal when inside project details */}
+        {selectedProjectId && showNewProjectModal && (
+          <NewProjectModal
+            onClose={() => setShowNewProjectModal(false)}
+            onProjectCreated={() => {
+              setSelectedProjectId(null);
+              setShowNewProjectModal(false);
+            }}
+          />
+        )}
       </div>
     </div>
   );

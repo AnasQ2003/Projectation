@@ -200,11 +200,11 @@ export default function Sidebar({
           {!collapsed && (
             <div style={{ overflow: 'hidden' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                Anas
+                Administrator
               </div>
               <div style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                 <ShieldCheck size={12} color="#16a34a" />
-                <span>Admin</span>
+                <span>Super Admin</span>
               </div>
             </div>
           )}

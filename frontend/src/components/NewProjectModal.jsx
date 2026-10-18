@@ -219,12 +219,12 @@ export default function NewProjectModal({ onClose, onProjectCreated }) {
 
           <div style={{ marginBottom: '1.2rem' }}>
             <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-              Project Budget ($ USD)
+              Project Budget (PKR)
             </label>
             <input
               type="number"
               className="form-input"
-              placeholder="e.g. 50000"
+              placeholder="e.g. 1500000"
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
             />

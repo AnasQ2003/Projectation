@@ -93,23 +93,6 @@ export default function Navbar({
           )}
         </button>
 
-        {/* Admin profile chip: Anas */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.45rem',
-          padding: '0.3rem 0.65rem',
-          borderRadius: '8px',
-          backgroundColor: 'var(--bg-muted)',
-          border: '1px solid var(--border-subtle)',
-          fontSize: '0.825rem',
-          color: 'var(--text-main)',
-          fontWeight: 600
-        }}>
-          <ShieldCheck size={15} color="#16a34a" />
-          <span>Anas</span>
-        </div>
-
         {/* Top Right Logout Button */}
         <button
           onClick={onLogout}

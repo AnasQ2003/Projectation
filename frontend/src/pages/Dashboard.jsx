@@ -6,7 +6,8 @@ import {
   CheckCircle2, 
   Clock, 
   Users, 
-  Filter
+  Filter,
+  RotateCcw
 } from 'lucide-react';
 import { api } from '../services/api';
 import ProjectCard from '../components/ProjectCard';
@@ -16,8 +17,10 @@ import { getDeadlineInfo } from '../utils/dateUtils';
 export default function Dashboard({ 
   onSelectProject, 
   searchQuery, 
+  setSearchQuery,
   showNewProjectModal, 
-  setShowNewProjectModal 
+  setShowNewProjectModal,
+  onProjectsLoaded
 }) {
   const [projects, setProjects] = useState([]);
   const [stats, setStats] = useState(null);
@@ -32,8 +35,11 @@ export default function Dashboard({
         api.getProjects(),
         api.getStats()
       ]);
-      setProjects(projectsData);
+      setProjects(projectsData || []);
       setStats(statsData);
+      if (onProjectsLoaded) {
+        onProjectsLoaded(projectsData ? projectsData.length : 0);
+      }
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -53,6 +59,20 @@ export default function Dashboard({
     } catch (err) {
       alert('Failed to delete project: ' + err.message);
     }
+  };
+
+  const handleProjectCreated = () => {
+    // Reset filters so the newly created project is immediately visible!
+    setSelectedCategory('ALL');
+    setSelectedUrgency('ALL');
+    if (setSearchQuery) setSearchQuery('');
+    fetchDashboardData();
+  };
+
+  const clearAllFilters = () => {
+    setSelectedCategory('ALL');
+    setSelectedUrgency('ALL');
+    if (setSearchQuery) setSearchQuery('');
   };
 
   const filteredProjects = projects.filter((p) => {
@@ -79,6 +99,8 @@ export default function Dashboard({
     return d.status === 'urgent' || d.status === 'overdue' || d.status === 'today';
   }).length;
 
+  const hasActiveFilter = selectedCategory !== 'ALL' || selectedUrgency !== 'ALL' || (searchQuery && searchQuery.trim().length > 0);
+
   return (
     <div className="animate-fade-in" style={{ padding: '1.75rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header Banner */}
@@ -89,7 +111,7 @@ export default function Dashboard({
               Projects Overview
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              Welcome Anas &bull; Monitor your software sprints, team velocity, and client deadlines
+              Monitor your software sprints, team velocity, and client deadlines
             </p>
           </div>
 
@@ -301,29 +323,53 @@ export default function Dashboard({
           ))}
         </div>
 
-        {/* Urgency Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.775rem', color: 'var(--text-dim)' }}>Deadline status:</span>
-          <select
-            value={selectedUrgency}
-            onChange={(e) => setSelectedUrgency(e.target.value)}
-            style={{
-              padding: '0.3rem 0.65rem',
-              borderRadius: '6px',
-              fontSize: '0.775rem',
-              fontWeight: 500,
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-main)',
-              border: '1px solid var(--border-subtle)',
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="ALL">All Deadlines</option>
-            <option value="OVERDUE">Overdue Only</option>
-            <option value="URGENT">Urgent (&lt; 3 Days)</option>
-            <option value="SAFE">On Track / Safe</option>
-          </select>
+        {/* Urgency Filter and Clear Filters button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <span style={{ fontSize: '0.775rem', color: 'var(--text-dim)' }}>Deadline status:</span>
+            <select
+              value={selectedUrgency}
+              onChange={(e) => setSelectedUrgency(e.target.value)}
+              style={{
+                padding: '0.3rem 0.65rem',
+                borderRadius: '6px',
+                fontSize: '0.775rem',
+                fontWeight: 500,
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-main)',
+                border: '1px solid var(--border-subtle)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ALL">All Deadlines</option>
+              <option value="OVERDUE">Overdue Only</option>
+              <option value="URGENT">Urgent (&lt; 3 Days)</option>
+              <option value="SAFE">On Track / Safe</option>
+            </select>
+          </div>
+
+          {hasActiveFilter && (
+            <button
+              onClick={clearAllFilters}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                padding: '0.3rem 0.65rem',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                color: 'var(--accent-primary)',
+                backgroundColor: 'var(--accent-primary-light)',
+                border: '1px solid var(--accent-primary-border)',
+                fontWeight: 600
+              }}
+              title="Clear all filters to show every project"
+            >
+              <RotateCcw size={12} />
+              <span>Clear Filter</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -339,7 +385,7 @@ export default function Dashboard({
             animation: 'spin 0.8s linear infinite',
             margin: '0 auto 0.75rem'
           }} />
-          <p style={{ fontSize: '0.85rem' }}>Loading projects...</p>
+          <p style={{ fontSize: '0.85rem' }}>Loading projects from SQL Server...</p>
         </div>
       ) : filteredProjects.length === 0 ? (
         <div style={{
@@ -350,20 +396,52 @@ export default function Dashboard({
           border: '1px dashed var(--border-strong)'
         }}>
           <FolderKanban size={36} color="var(--text-dim)" style={{ margin: '0 auto 0.75rem' }} />
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-            No matching projects found
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-            {searchQuery ? `No results for "${searchQuery}".` : 'Get started by creating your first project.'}
-          </p>
-          <button
-            onClick={() => setShowNewProjectModal(true)}
-            className="btn-primary"
-            style={{ display: 'inline-flex' }}
-          >
-            <Plus size={16} />
-            <span>Create Project</span>
-          </button>
+          
+          {projects.length > 0 ? (
+            <>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem', color: 'var(--text-main)' }}>
+                No projects match the current filter
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                You have {projects.length} {projects.length === 1 ? 'project' : 'projects'} in your database, but {projects.length === 1 ? 'it is' : 'they are'} hidden by the active filter ({selectedUrgency !== 'ALL' ? `Deadline: ${selectedUrgency}` : ''} {selectedCategory !== 'ALL' ? `Category: ${selectedCategory}` : ''} {searchQuery ? `Search: "${searchQuery}"` : ''}).
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem' }}>
+                <button
+                  onClick={clearAllFilters}
+                  className="btn-secondary"
+                  style={{ display: 'inline-flex', padding: '0.5rem 1rem' }}
+                >
+                  <RotateCcw size={15} />
+                  <span>Show All Projects ({projects.length})</span>
+                </button>
+                <button
+                  onClick={() => setShowNewProjectModal(true)}
+                  className="btn-primary"
+                  style={{ display: 'inline-flex', padding: '0.5rem 1rem' }}
+                >
+                  <Plus size={16} />
+                  <span>Create New Project</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem', color: 'var(--text-main)' }}>
+                No projects yet
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                Get started by creating your first software house project.
+              </p>
+              <button
+                onClick={() => setShowNewProjectModal(true)}
+                className="btn-primary"
+                style={{ display: 'inline-flex' }}
+              >
+                <Plus size={16} />
+                <span>Create Project</span>
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div style={{
@@ -386,7 +464,7 @@ export default function Dashboard({
       {showNewProjectModal && (
         <NewProjectModal
           onClose={() => setShowNewProjectModal(false)}
-          onProjectCreated={fetchDashboardData}
+          onProjectCreated={handleProjectCreated}
         />
       )}
     </div>

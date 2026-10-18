@@ -11,12 +11,12 @@ export default function SplashLogo({ onFinish }) {
           clearInterval(timer);
           setTimeout(() => {
             onFinish();
-          }, 200);
+          }, 250);
           return 100;
         }
-        return prev + 10;
+        return prev + 5;
       });
-    }, 45);
+    }, 55); // Smooth ~1.2s animation
 
     return () => clearInterval(timer);
   }, [onFinish]);
@@ -35,26 +35,27 @@ export default function SplashLogo({ onFinish }) {
       padding: '1.5rem',
       fontFamily: 'var(--font-main)'
     }}>
-      {/* Brand Icon */}
+      {/* Brand Icon with clean subtle pulse */}
       <div style={{
-        width: '64px',
-        height: '64px',
+        width: '68px',
+        height: '68px',
         borderRadius: '16px',
         backgroundColor: '#2563eb',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         color: '#ffffff',
-        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
-        marginBottom: '1.25rem'
+        boxShadow: '0 8px 20px rgba(37, 99, 235, 0.25)',
+        marginBottom: '1.25rem',
+        animation: 'fadeIn 0.4s ease-out'
       }}>
-        <KanbanSquare size={34} strokeWidth={2.2} />
+        <KanbanSquare size={36} strokeWidth={2.2} />
       </div>
 
       {/* Brand Title */}
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <h1 style={{
-          fontSize: '1.75rem',
+          fontSize: '1.85rem',
           fontWeight: 800,
           letterSpacing: '-0.03em',
           color: '#0f172a',
@@ -71,7 +72,7 @@ export default function SplashLogo({ onFinish }) {
         </p>
       </div>
 
-      {/* Subtle Progress Bar */}
+      {/* Smooth Loading Indicator */}
       <div style={{ width: '220px' }}>
         <div style={{
           height: '4px',
@@ -86,7 +87,7 @@ export default function SplashLogo({ onFinish }) {
             width: `${progress}%`,
             backgroundColor: '#2563eb',
             borderRadius: '999px',
-            transition: 'width 0.1s linear'
+            transition: 'width 0.08s ease-out'
           }} />
         </div>
         <div style={{

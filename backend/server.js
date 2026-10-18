@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { db, initDb } = require('./db');
+const { connectDB, executeQuery, sql } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -9,84 +9,92 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Initialize SQLite DB
-initDb();
+// Ensure SQL Server is connected on boot
+connectDB().catch(err => {
+  console.error('Failed to initialize SQL Server on startup:', err.message);
+});
 
 // -----------------------------
 // Authentication Route (Admin only)
 // -----------------------------
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
-  const cleanUser = username.trim().toLowerCase();
-  db.get('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(username) = ?', [cleanUser, cleanUser === 'anas' ? 'admin' : 'anas'], (err, user) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const cleanUser = username.trim().toLowerCase();
+    const result = await executeQuery(
+      `SELECT * FROM Users WHERE LOWER(username) = @u OR (LOWER(username) = 'anas' AND @u = 'admin') OR (LOWER(username) = 'admin' AND @u = 'anas')`,
+      { u: cleanUser }
+    );
+
+    const user = result.recordset[0];
     if (!user || user.password !== password) {
-      return res.status(401).json({ error: 'Invalid admin credentials! (Use anas or admin / admin123)' });
+      return res.status(401).json({ error: 'Invalid login credentials!' });
     }
 
-    // Return token & Anas admin profile
     res.json({
       message: 'Login successful',
       token: 'admin-auth-token-secure-session',
       user: {
         id: user.id,
         username: user.username,
-        name: 'Anas',
-        role: 'Project Lead & Admin'
+        name: user.name || 'Anas',
+        role: user.role
       }
     });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // -----------------------------
 // Global Dashboard Stats
 // -----------------------------
-app.get('/api/stats', (req, res) => {
-  const query = `
-    SELECT 
-      (SELECT COUNT(*) FROM projects) as total_projects,
-      (SELECT COUNT(*) FROM tasks WHERE status != 'done') as active_tasks,
-      (SELECT COUNT(*) FROM tasks WHERE status = 'done') as completed_tasks,
-      (SELECT COUNT(*) FROM members) as total_members
-  `;
-  db.get(query, [], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(row);
-  });
+app.get('/api/stats', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        (SELECT COUNT(*) FROM Projects) AS total_projects,
+        (SELECT COUNT(*) FROM Tasks WHERE status != 'done') AS active_tasks,
+        (SELECT COUNT(*) FROM Tasks WHERE status = 'done') AS completed_tasks,
+        (SELECT COUNT(*) FROM Members) AS total_members
+    `;
+    const result = await executeQuery(query);
+    res.json(result.recordset[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // -----------------------------
 // Projects CRUD Routes
 // -----------------------------
 
-// 1. Get All Projects (with member & task summaries)
-app.get('/api/projects', (req, res) => {
-  const query = `
-    SELECT 
-      p.*,
-      COUNT(DISTINCT m.id) as member_count,
-      COUNT(DISTINCT t.id) as total_tasks,
-      SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) as done_tasks
-    FROM projects p
-    LEFT JOIN members m ON m.project_id = p.id
-    LEFT JOIN tasks t ON t.project_id = p.id
-    GROUP BY p.id
-    ORDER BY p.id DESC
-  `;
+// 1. Get All Projects (with member & task counts)
+app.get('/api/projects', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.*,
+        COUNT(DISTINCT m.id) AS member_count,
+        COUNT(DISTINCT t.id) AS total_tasks,
+        SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) AS done_tasks
+      FROM Projects p
+      LEFT JOIN Members m ON m.project_id = p.id
+      LEFT JOIN Tasks t ON t.project_id = p.id
+      GROUP BY p.id, p.name, p.code, p.description, p.category, p.priority, p.status, p.start_date, p.deadline, p.budget, p.progress, p.created_at
+      ORDER BY p.id DESC
+    `;
 
-  db.all(query, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    // Calculate accurate completion progress percentage
-    const projects = rows.map(p => {
+    const result = await executeQuery(query);
+    const projects = result.recordset.map(p => {
       let calcProgress = p.progress;
       if (p.total_tasks > 0) {
-        calcProgress = Math.round((p.done_tasks / p.total_tasks) * 100);
+        calcProgress = Math.round(((p.done_tasks || 0) / p.total_tasks) * 100);
       }
       return {
         ...p,
@@ -95,43 +103,39 @@ app.get('/api/projects', (req, res) => {
     });
 
     res.json(projects);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 2. Get Single Project Details (Full workspace: members, tasks, activity)
-app.get('/api/projects/:id', (req, res) => {
-  const projectId = req.params.id;
+// 2. Get Single Project Details
+app.get('/api/projects/:id', async (req, res) => {
+  const projectId = parseInt(req.params.id);
 
-  db.get('SELECT * FROM projects WHERE id = ?', [projectId], (err, project) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const projResult = await executeQuery('SELECT * FROM Projects WHERE id = @id', { id: projectId });
+    const project = projResult.recordset[0];
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    // Fetch members
-    db.all('SELECT * FROM members WHERE project_id = ? ORDER BY id ASC', [projectId], (err, members) => {
-      if (err) return res.status(500).json({ error: err.message });
+    const [membersRes, tasksRes, logsRes] = await Promise.all([
+      executeQuery('SELECT * FROM Members WHERE project_id = @id ORDER BY id ASC', { id: projectId }),
+      executeQuery('SELECT * FROM Tasks WHERE project_id = @id ORDER BY id DESC', { id: projectId }),
+      executeQuery('SELECT TOP 15 * FROM ActivityLogs WHERE project_id = @id ORDER BY id DESC', { id: projectId })
+    ]);
 
-      // Fetch tasks
-      db.all('SELECT * FROM tasks WHERE project_id = ? ORDER BY id DESC', [projectId], (err, tasks) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        // Fetch activity logs
-        db.all('SELECT * FROM activity_logs WHERE project_id = ? ORDER BY id DESC LIMIT 15', [projectId], (err, logs) => {
-          if (err) return res.status(500).json({ error: err.message });
-
-          res.json({
-            ...project,
-            members: members || [],
-            tasks: tasks || [],
-            activity_logs: logs || []
-          });
-        });
-      });
+    res.json({
+      ...project,
+      members: membersRes.recordset || [],
+      tasks: tasksRes.recordset || [],
+      activity_logs: logsRes.recordset || []
     });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 3. Create New Project
-app.post('/api/projects', (req, res) => {
+app.post('/api/projects', async (req, res) => {
   const { name, code, description, category, priority, status, start_date, deadline, budget } = req.body;
 
   if (!name || !deadline) {
@@ -141,198 +145,245 @@ app.post('/api/projects', (req, res) => {
   const generatedCode = code ? code.toUpperCase() : name.slice(0, 4).toUpperCase() + '-' + Math.floor(100 + Math.random() * 900);
   const startDateVal = start_date || new Date().toISOString().split('T')[0];
 
-  const query = `
-    INSERT INTO projects (name, code, description, category, priority, status, start_date, deadline, budget, progress)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+  try {
+    const query = `
+      INSERT INTO Projects (name, code, description, category, priority, status, start_date, deadline, budget, progress)
+      OUTPUT INSERTED.id
+      VALUES (@name, @code, @description, @category, @priority, @status, @start_date, @deadline, @budget, 0);
+    `;
 
-  db.run(
-    query,
-    [
+    const insRes = await executeQuery(query, {
       name,
-      generatedCode,
-      description || '',
-      category || 'Software Development',
-      priority || 'Medium',
-      status || 'In Progress',
-      startDateVal,
+      code: generatedCode,
+      description: description || '',
+      category: category || 'Software Development',
+      priority: priority || 'Medium',
+      status: status || 'In Progress',
+      start_date: startDateVal,
       deadline,
-      budget || 0,
-      0
-    ],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      const newProjectId = this.lastID;
+      budget: parseFloat(budget) || 0
+    });
 
-      // Add default activity log
-      db.run(
-        'INSERT INTO activity_logs (project_id, action, user) VALUES (?, ?, ?)',
-        [newProjectId, `Project created with deadline ${deadline}`, 'Anas (Admin)']
-      );
+    const newProjectId = insRes.recordset[0].id;
 
-      res.status(201).json({
-        id: newProjectId,
-        message: 'Project created successfully!'
-      });
-    }
-  );
+    // Add activity log
+    await executeQuery(
+      `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, @action, @user)`,
+      {
+        pid: newProjectId,
+        action: `Project created with deadline ${deadline}`,
+        user: 'Anas (Admin)'
+      }
+    );
+
+    res.status(201).json({
+      id: newProjectId,
+      message: 'Project created successfully!'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 4. Update Project Details
-app.put('/api/projects/:id', (req, res) => {
-  const projectId = req.params.id;
+app.put('/api/projects/:id', async (req, res) => {
+  const projectId = parseInt(req.params.id);
   const { name, code, description, category, priority, status, start_date, deadline, budget, progress } = req.body;
 
-  const query = `
-    UPDATE projects 
-    SET name = COALESCE(?, name),
-        code = COALESCE(?, code),
-        description = COALESCE(?, description),
-        category = COALESCE(?, category),
-        priority = COALESCE(?, priority),
-        status = COALESCE(?, status),
-        start_date = COALESCE(?, start_date),
-        deadline = COALESCE(?, deadline),
-        budget = COALESCE(?, budget),
-        progress = COALESCE(?, progress)
-    WHERE id = ?
-  `;
+  try {
+    const query = `
+      UPDATE Projects 
+      SET name = COALESCE(@name, name),
+          code = COALESCE(@code, code),
+          description = COALESCE(@description, description),
+          category = COALESCE(@category, category),
+          priority = COALESCE(@priority, priority),
+          status = COALESCE(@status, status),
+          start_date = COALESCE(@start_date, start_date),
+          deadline = COALESCE(@deadline, deadline),
+          budget = COALESCE(@budget, budget),
+          progress = COALESCE(@progress, progress)
+      WHERE id = @id;
+    `;
 
-  db.run(
-    query,
-    [name, code, description, category, priority, status, start_date, deadline, budget, progress, projectId],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      
-      db.run(
-        'INSERT INTO activity_logs (project_id, action, user) VALUES (?, ?, ?)',
-        [projectId, 'Project information updated', 'Admin']
-      );
+    await executeQuery(query, {
+      name: name !== undefined ? name : null,
+      code: code !== undefined ? code : null,
+      description: description !== undefined ? description : null,
+      category: category !== undefined ? category : null,
+      priority: priority !== undefined ? priority : null,
+      status: status !== undefined ? status : null,
+      start_date: start_date !== undefined ? start_date : null,
+      deadline: deadline !== undefined ? deadline : null,
+      budget: budget !== undefined ? parseFloat(budget) : null,
+      progress: progress !== undefined ? parseInt(progress) : null,
+      id: projectId
+    });
 
-      res.json({ message: 'Project updated successfully' });
-    }
-  );
+    await executeQuery(
+      `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, 'Project details updated', 'Anas (Admin)')`,
+      { pid: projectId }
+    );
+
+    res.json({ message: 'Project updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 5. Delete Project
-app.delete('/api/projects/:id', (req, res) => {
-  const projectId = req.params.id;
-
-  db.run('DELETE FROM projects WHERE id = ?', [projectId], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Project and all associated data deleted successfully' });
-  });
+app.delete('/api/projects/:id', async (req, res) => {
+  const projectId = parseInt(req.params.id);
+  try {
+    await executeQuery('DELETE FROM Projects WHERE id = @id', { id: projectId });
+    res.json({ message: 'Project deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // -----------------------------
 // Members Routes
 // -----------------------------
-
-// Add Member to Project
-app.post('/api/projects/:id/members', (req, res) => {
-  const projectId = req.params.id;
+app.post('/api/projects/:id/members', async (req, res) => {
+  const projectId = parseInt(req.params.id);
   const { name, email, role, avatar_color } = req.body;
 
   if (!name || !email || !role) {
     return res.status(400).json({ error: 'Name, email, and role are required' });
   }
 
-  const colors = ['#6366f1', '#06b6d4', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6'];
+  const colors = ['#2563eb', '#0891b2', '#db2777', '#16a34a', '#d97706', '#7c3aed'];
   const assignedColor = avatar_color || colors[Math.floor(Math.random() * colors.length)];
 
-  const query = `INSERT INTO members (project_id, name, email, role, avatar_color) VALUES (?, ?, ?, ?, ?)`;
-  db.run(query, [projectId, name, email, role, assignedColor], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const query = `
+      INSERT INTO Members (project_id, name, email, role, avatar_color)
+      OUTPUT INSERTED.id
+      VALUES (@pid, @name, @email, @role, @color);
+    `;
+    const insRes = await executeQuery(query, {
+      pid: projectId,
+      name,
+      email,
+      role,
+      color: assignedColor
+    });
 
-    db.run(
-      'INSERT INTO activity_logs (project_id, action, user) VALUES (?, ?, ?)',
-      [projectId, `Added team member: ${name} (${role})`, 'Admin']
+    await executeQuery(
+      `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, @action, 'Anas (Admin)')`,
+      {
+        pid: projectId,
+        action: `Added team member: ${name} (${role})`
+      }
     );
 
-    res.status(201).json({ id: this.lastID, name, email, role, avatar_color: assignedColor });
-  });
+    res.status(201).json({ id: insRes.recordset[0].id, name, email, role, avatar_color: assignedColor });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Delete Member
-app.delete('/api/members/:id', (req, res) => {
-  const memberId = req.params.id;
-  db.run('DELETE FROM members WHERE id = ?', [memberId], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
+app.delete('/api/members/:id', async (req, res) => {
+  const memberId = parseInt(req.params.id);
+  try {
+    await executeQuery('DELETE FROM Members WHERE id = @id', { id: memberId });
     res.json({ message: 'Member removed successfully' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // -----------------------------
-// Tasks (Working / Jira items) Routes
+// Tasks (Working / Sprint) Routes
 // -----------------------------
-
-// Add Task to Project
-app.post('/api/projects/:id/tasks', (req, res) => {
-  const projectId = req.params.id;
+app.post('/api/projects/:id/tasks', async (req, res) => {
+  const projectId = parseInt(req.params.id);
   const { title, description, status, priority, assignee, due_date } = req.body;
 
   if (!title) {
     return res.status(400).json({ error: 'Task title is required' });
   }
 
-  const query = `
-    INSERT INTO tasks (project_id, title, description, status, priority, assignee, due_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `;
+  try {
+    const query = `
+      INSERT INTO Tasks (project_id, title, description, status, priority, assignee, due_date)
+      OUTPUT INSERTED.id
+      VALUES (@pid, @title, @desc, @status, @priority, @assignee, @due_date);
+    `;
 
-  db.run(
-    query,
-    [projectId, title, description || '', status || 'todo', priority || 'Medium', assignee || 'Unassigned', due_date || null],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+    const insRes = await executeQuery(query, {
+      pid: projectId,
+      title,
+      desc: description || '',
+      status: status || 'todo',
+      priority: priority || 'Medium',
+      assignee: assignee || 'Unassigned',
+      due_date: due_date || null
+    });
 
-      db.run(
-        'INSERT INTO activity_logs (project_id, action, user) VALUES (?, ?, ?)',
-        [projectId, `Created task: "${title}"`, 'Admin']
-      );
+    await executeQuery(
+      `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, @action, 'Anas (Admin)')`,
+      {
+        pid: projectId,
+        action: `Created task: "${title}"`
+      }
+    );
 
-      res.status(201).json({ id: this.lastID, title, status, priority });
-    }
-  );
+    res.status(201).json({ id: insRes.recordset[0].id, title, status, priority });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Update Task (status, priority, assignee, etc.)
-app.put('/api/tasks/:id', (req, res) => {
-  const taskId = req.params.id;
+app.put('/api/tasks/:id', async (req, res) => {
+  const taskId = parseInt(req.params.id);
   const { title, description, status, priority, assignee, due_date } = req.body;
 
-  const query = `
-    UPDATE tasks
-    SET title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        status = COALESCE(?, status),
-        priority = COALESCE(?, priority),
-        assignee = COALESCE(?, assignee),
-        due_date = COALESCE(?, due_date)
-    WHERE id = ?
-  `;
+  try {
+    const query = `
+      UPDATE Tasks
+      SET title = COALESCE(@title, title),
+          description = COALESCE(@description, description),
+          status = COALESCE(@status, status),
+          priority = COALESCE(@priority, priority),
+          assignee = COALESCE(@assignee, assignee),
+          due_date = COALESCE(@due_date, due_date)
+      WHERE id = @id;
+    `;
 
-  db.run(query, [title, description, status, priority, assignee, due_date, taskId], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
+    await executeQuery(query, {
+      title: title !== undefined ? title : null,
+      description: description !== undefined ? description : null,
+      status: status !== undefined ? status : null,
+      priority: priority !== undefined ? priority : null,
+      assignee: assignee !== undefined ? assignee : null,
+      due_date: due_date !== undefined ? due_date : null,
+      id: taskId
+    });
+
     res.json({ message: 'Task updated successfully' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Delete Task
-app.delete('/api/tasks/:id', (req, res) => {
-  const taskId = req.params.id;
-  db.run('DELETE FROM tasks WHERE id = ?', [taskId], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
+app.delete('/api/tasks/:id', async (req, res) => {
+  const taskId = parseInt(req.params.id);
+  try {
+    await executeQuery('DELETE FROM Tasks WHERE id = @id', { id: taskId });
     res.json({ message: 'Task deleted successfully' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', server: 'Projectation API', timestamp: new Date() });
+  res.json({ status: 'ok', server: 'Projectation API (MSSQL)', timestamp: new Date() });
 });
 
 // Start Server
 app.listen(PORT, () => {
-  console.log(`🚀 Projectation Backend server running on http://localhost:${PORT}`);
+  console.log(`🚀 Projectation Backend server running on http://localhost:${PORT} (Connected to MS SQL Server)`);
 });

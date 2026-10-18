@@ -314,9 +314,8 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
           <div>
             <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.15rem' }}>Allocated Budget</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <DollarSign size={15} color="var(--accent-success)" />
               <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                {project.budget ? Number(project.budget).toLocaleString() : '0'} USD
+                PKR {project.budget ? Number(project.budget).toLocaleString() : '0'}
               </span>
             </div>
           </div>

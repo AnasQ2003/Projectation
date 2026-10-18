@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
-import { KanbanSquare, Lock, User, ArrowRight, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { KanbanSquare, Lock, User, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function LoginScreen({ onLoginSuccess }) {
-  const [username, setUsername] = useState('anas');
-  const [password, setPassword] = useState('admin123');
+  const [rememberMe, setRememberMe] = useState(() => {
+    return localStorage.getItem('projectation_remember_me') === 'true';
+  });
+
+  const [username, setUsername] = useState(() => {
+    return localStorage.getItem('projectation_remembered_username') || '';
+  });
+
+  const [password, setPassword] = useState(() => {
+    return localStorage.getItem('projectation_remembered_password') || '';
+  });
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -16,10 +26,21 @@ export default function LoginScreen({ onLoginSuccess }) {
 
     try {
       const data = await api.login(username, password);
-      // Ensure user name is explicitly Anas
+
+      // Persist or clear Remember Me credentials
+      if (rememberMe) {
+        localStorage.setItem('projectation_remember_me', 'true');
+        localStorage.setItem('projectation_remembered_username', username);
+        localStorage.setItem('projectation_remembered_password', password);
+      } else {
+        localStorage.removeItem('projectation_remember_me');
+        localStorage.removeItem('projectation_remembered_username');
+        localStorage.removeItem('projectation_remembered_password');
+      }
+
       const adminUser = {
         ...data.user,
-        name: 'Anas',
+        name: data.user.name || 'Admin',
         role: 'Lead Administrator'
       };
       localStorage.setItem('projectation_token', data.token);
@@ -30,12 +51,6 @@ export default function LoginScreen({ onLoginSuccess }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const autofillCredentials = () => {
-    setUsername('anas');
-    setPassword('admin123');
-    setError('');
   };
 
   return (
@@ -49,18 +64,18 @@ export default function LoginScreen({ onLoginSuccess }) {
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '420px',
+        maxWidth: '400px',
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
-        borderRadius: '14px',
+        borderRadius: '12px',
         padding: '2.25rem 2rem',
         boxShadow: 'var(--shadow-md)'
       }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div style={{
-            width: '48px',
-            height: '48px',
+            width: '46px',
+            height: '46px',
             borderRadius: '12px',
             backgroundColor: 'var(--accent-primary)',
             color: '#ffffff',
@@ -70,47 +85,14 @@ export default function LoginScreen({ onLoginSuccess }) {
             boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)',
             marginBottom: '1rem'
           }}>
-            <KanbanSquare size={26} />
+            <KanbanSquare size={24} />
           </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
-            Welcome back, Anas
+          <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
+            Welcome back
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
             Sign in to access your project dashboard
           </p>
-        </div>
-
-        {/* Demo Credentials Box */}
-        <div style={{
-          backgroundColor: 'var(--bg-muted)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '8px',
-          padding: '0.75rem 0.9rem',
-          marginBottom: '1.4rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '0.825rem'
-        }}>
-          <div>
-            <span style={{ color: 'var(--text-dim)', display: 'block', fontSize: '0.725rem', fontWeight: 600 }}>DEMO CREDENTIALS</span>
-            <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>anas / admin123</span>
-          </div>
-          <button
-            type="button"
-            onClick={autofillCredentials}
-            style={{
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-strong)',
-              color: 'var(--accent-primary)',
-              padding: '0.3rem 0.65rem',
-              borderRadius: '6px'
-            }}
-          >
-            Auto-fill
-          </button>
         </div>
 
         {error && (
@@ -145,14 +127,14 @@ export default function LoginScreen({ onLoginSuccess }) {
                 style={{ paddingLeft: '2.3rem' }}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="anas or admin"
+                placeholder="Enter username"
                 required
               />
             </div>
           </div>
 
           {/* Password */}
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1.1rem' }}>
             <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
               Password
             </label>
@@ -164,7 +146,7 @@ export default function LoginScreen({ onLoginSuccess }) {
                 style={{ paddingLeft: '2.3rem', paddingRight: '2.3rem' }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="admin123"
+                placeholder="Enter password"
                 required
               />
               <button
@@ -183,30 +165,35 @@ export default function LoginScreen({ onLoginSuccess }) {
             </div>
           </div>
 
+          {/* Remember Me Checkbox */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.35rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.825rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{
+                  cursor: 'pointer',
+                  accentColor: 'var(--accent-primary)',
+                  width: '15px',
+                  height: '15px',
+                  borderRadius: '4px'
+                }}
+              />
+              <span>Remember me</span>
+            </label>
+          </div>
+
           <button
             type="submit"
             className="btn-primary"
             disabled={loading}
             style={{ width: '100%', justifyContent: 'center', padding: '0.7rem' }}
           >
-            {loading ? 'Signing in...' : 'Sign In as Anas'}
+            {loading ? 'Signing in...' : 'Sign In'}
             <ArrowRight size={16} />
           </button>
         </form>
-
-        <div style={{
-          marginTop: '1.5rem',
-          textAlign: 'center',
-          fontSize: '0.75rem',
-          color: 'var(--text-dim)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.35rem'
-        }}>
-          <CheckCircle2 size={13} color="var(--accent-success)" />
-          <span>Single-Admin Control &bull; Full Privileges</span>
-        </div>
       </div>
     </div>
   );
