@@ -118,5 +118,45 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to delete task');
     return res.json();
+  },
+
+  // Global Members
+  async getAllMembers() {
+    const res = await fetch(`${API_BASE_URL}/members`);
+    if (!res.ok) throw new Error('Failed to fetch members');
+    return res.json();
+  },
+
+  async createMember(memberData) {
+    const res = await fetch(`${API_BASE_URL}/members`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(memberData)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to add member');
+    }
+    return res.json();
+  },
+
+  // Global Tasks
+  async getAllTasks() {
+    const res = await fetch(`${API_BASE_URL}/tasks`);
+    if (!res.ok) throw new Error('Failed to fetch tasks');
+    return res.json();
+  },
+
+  async createTask(taskData) {
+    const res = await fetch(`${API_BASE_URL}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(taskData)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to create task');
+    }
+    return res.json();
   }
 };

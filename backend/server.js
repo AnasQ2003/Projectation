@@ -245,6 +245,89 @@ app.delete('/api/projects/:id', async (req, res) => {
 // -----------------------------
 // Members Routes
 // -----------------------------
+
+// Get All Members with detailed work completion metrics across projects
+app.get('/api/members', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        m.id,
+        m.project_id,
+        m.name,
+        m.email,
+        m.role,
+        m.avatar_color,
+        p.name AS project_name,
+        p.code AS project_code,
+        ISNULL((SELECT COUNT(*) FROM Tasks t WHERE t.project_id = m.project_id AND t.assignee = m.name), 0) AS tasks_assigned,
+        ISNULL((SELECT COUNT(*) FROM Tasks t WHERE t.project_id = m.project_id AND t.assignee = m.name AND t.status = 'done'), 0) AS tasks_completed,
+        ISNULL((SELECT COUNT(*) FROM Tasks t WHERE t.project_id = m.project_id AND t.assignee = m.name AND t.status != 'done'), 0) AS tasks_pending
+      FROM Members m
+      LEFT JOIN Projects p ON p.id = m.project_id
+      ORDER BY m.id DESC
+    `;
+    const result = await executeQuery(query);
+
+    // Also fetch tasks assigned to each member for work details
+    const tasksRes = await executeQuery('SELECT * FROM Tasks ORDER BY id DESC');
+    const allTasks = tasksRes.recordset || [];
+
+    const membersWithWork = result.recordset.map(m => {
+      const memberTasks = allTasks.filter(t => t.project_id === m.project_id && t.assignee === m.name);
+      const total = m.tasks_assigned;
+      const done = m.tasks_completed;
+      const rate = total > 0 ? Math.round((done / total) * 100) : 0;
+      return {
+        ...m,
+        completion_rate: rate,
+        tasks: memberTasks
+      };
+    });
+
+    res.json(membersWithWork);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add member with project_id in body
+app.post('/api/members', async (req, res) => {
+  const { project_id, name, email, role, avatar_color } = req.body;
+  if (!project_id || !name || !email || !role) {
+    return res.status(400).json({ error: 'Project, Name, email, and role are required' });
+  }
+
+  const colors = ['#2563eb', '#0891b2', '#db2777', '#16a34a', '#d97706', '#7c3aed'];
+  const assignedColor = avatar_color || colors[Math.floor(Math.random() * colors.length)];
+
+  try {
+    const query = `
+      INSERT INTO Members (project_id, name, email, role, avatar_color)
+      OUTPUT INSERTED.id
+      VALUES (@pid, @name, @email, @role, @color);
+    `;
+    const insRes = await executeQuery(query, {
+      pid: parseInt(project_id),
+      name,
+      email,
+      role,
+      color: assignedColor
+    });
+
+    await executeQuery(
+      `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, @action, 'Anas (Admin)')`,
+      {
+        pid: parseInt(project_id),
+        action: `Added team member: ${name} (${role})`
+      }
+    );
+
+    res.status(201).json({ id: insRes.recordset[0].id, project_id, name, email, role, avatar_color: assignedColor });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/projects/:id/members', async (req, res) => {
   const projectId = parseInt(req.params.id);
   const { name, email, role, avatar_color } = req.body;
@@ -297,6 +380,64 @@ app.delete('/api/members/:id', async (req, res) => {
 // -----------------------------
 // Tasks (Working / Sprint) Routes
 // -----------------------------
+
+// Get All Tasks across projects with project metadata
+app.get('/api/tasks', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        t.*,
+        p.name AS project_name,
+        p.code AS project_code
+      FROM Tasks t
+      LEFT JOIN Projects p ON p.id = t.project_id
+      ORDER BY t.id DESC
+    `;
+    const result = await executeQuery(query);
+    res.json(result.recordset || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create task with project_id in body
+app.post('/api/tasks', async (req, res) => {
+  const { project_id, title, description, status, priority, assignee, due_date } = req.body;
+  if (!project_id || !title) {
+    return res.status(400).json({ error: 'Project and Task title are required' });
+  }
+
+  try {
+    const query = `
+      INSERT INTO Tasks (project_id, title, description, status, priority, assignee, due_date)
+      OUTPUT INSERTED.id
+      VALUES (@pid, @title, @desc, @status, @priority, @assignee, @due_date);
+    `;
+
+    const insRes = await executeQuery(query, {
+      pid: parseInt(project_id),
+      title,
+      desc: description || '',
+      status: status || 'todo',
+      priority: priority || 'Medium',
+      assignee: assignee || 'Unassigned',
+      due_date: due_date || null
+    });
+
+    await executeQuery(
+      `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, @action, 'Anas (Admin)')`,
+      {
+        pid: parseInt(project_id),
+        action: `Created task: "${title}"`
+      }
+    );
+
+    res.status(201).json({ id: insRes.recordset[0].id, project_id, title, status, priority });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/projects/:id/tasks', async (req, res) => {
   const projectId = parseInt(req.params.id);
   const { title, description, status, priority, assignee, due_date } = req.body;

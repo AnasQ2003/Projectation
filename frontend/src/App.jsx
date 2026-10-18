@@ -4,7 +4,11 @@ import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
+import AllTasksView from './pages/AllTasksView';
+import TeamView from './pages/TeamView';
+import RoadmapView from './pages/RoadmapView';
 import ProjectDetail from './components/ProjectDetail';
+import NewProjectModal from './components/NewProjectModal';
 import { api } from './services/api';
 
 export default function App() {
@@ -77,10 +81,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          // If clicked projects, go back to overview
-          if (tab === 'projects') {
-            setSelectedProjectId(null);
-          }
+          setSelectedProjectId(null);
         }}
         user={user}
         projectCount={totalProjectsCount}
@@ -99,13 +100,25 @@ export default function App() {
           onOpenNewProject={() => setShowNewProjectModal(true)}
         />
 
-        {/* View Router: Dashboard or Detailed Project Workspace */}
+        {/* View Router for all 4 sidebar options & Project Detail */}
         <main style={{ flex: 1 }}>
           {selectedProjectId ? (
             <ProjectDetail
               projectId={selectedProjectId}
               onBack={() => setSelectedProjectId(null)}
               onProjectDeleted={() => setSelectedProjectId(null)}
+            />
+          ) : activeTab === 'tasks' ? (
+            <AllTasksView
+              onSelectProject={(id) => setSelectedProjectId(id)}
+            />
+          ) : activeTab === 'team' ? (
+            <TeamView
+              onSelectProject={(id) => setSelectedProjectId(id)}
+            />
+          ) : activeTab === 'timeline' ? (
+            <RoadmapView
+              onSelectProject={(id) => setSelectedProjectId(id)}
             />
           ) : (
             <Dashboard
@@ -119,12 +132,13 @@ export default function App() {
           )}
         </main>
 
-        {/* Global Create Project Modal when inside project details */}
-        {selectedProjectId && showNewProjectModal && (
+        {/* Global Create Project Modal when inside project details or other views */}
+        {showNewProjectModal && (
           <NewProjectModal
             onClose={() => setShowNewProjectModal(false)}
             onProjectCreated={() => {
               setSelectedProjectId(null);
+              setActiveTab('projects');
               setShowNewProjectModal(false);
             }}
           />
