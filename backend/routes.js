@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-// ── Models (all SQL queries live in /models/) ─────────────────────────────────
-const { findUserByUsername }                       = require('./models/userModel');
-const { fetchGlobalStats }                         = require('./models/statsModel');
-const { fetchAllProjects, fetchProjectById,
-        insertProject, modifyProject, removeProject } = require('./models/projectModel');
+// Models — all SQL queries live in /models/
+const { findUserByUsername }  = require('./models/userModel');
+const { fetchGlobalStats } = require('./models/statsModel');
+const { fetchAllProjects, fetchProjectById, insertProject, modifyProject, removeProject } = require('./models/projectModel');
 const { fetchAllMembers, insertMember, removeMember } = require('./models/memberModel');
-const { fetchAllTasks, insertTask,
-        modifyTask, removeTask }                   = require('./models/taskModel');
+const { fetchAllTasks, insertTask, modifyTask, removeTask }  = require('./models/taskModel');
+
 
 // ==========================================
 // 1. HEALTH CHECK
