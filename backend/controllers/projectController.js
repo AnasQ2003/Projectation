@@ -27,15 +27,16 @@ async function listProjects(req, res) {
   }
 }
 
-// GET /api/projects/:id
+// GET /api/projects/:id or POST /api/projects/detail
 async function getProject(req, res) {
-  const idErrors = validateProjectId(req.params);
+  const id = req.params.id || req.body.id;
+  const idErrors = validateProjectId({ id });
   if (idErrors.length > 0) {
     return res.status(400).json({ error: idErrors[0], errors: idErrors });
   }
 
   try {
-    const project = await getProjectById(req.params.id);
+    const project = await getProjectById(id);
     return res.json(project);
   } catch (err) {
     if (err.message === 'Project not found') {
@@ -62,7 +63,8 @@ async function addProject(req, res) {
 
 // POST /api/projects/update  (replaces PUT /api/projects/:id)
 async function editProject(req, res) {
-  const { id, ...updateData } = req.body;
+  const { id: bodyId, ...updateData } = req.body;
+  const id = bodyId || req.params.id;
 
   const idErrors = validateProjectId({ id });
   if (idErrors.length > 0) {
@@ -84,7 +86,7 @@ async function editProject(req, res) {
 
 // POST /api/projects/delete  (replaces DELETE /api/projects/:id)
 async function removeProjectHandler(req, res) {
-  const { id } = req.body;
+  const id = req.body.id || req.params.id;
 
   const idErrors = validateProjectId({ id });
   if (idErrors.length > 0) {

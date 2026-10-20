@@ -45,7 +45,7 @@ async function createMember(req, res) {
 
 // POST /api/members/delete  (replaces DELETE /api/members/:id)
 async function removeMemberHandler(req, res) {
-  const { id } = req.body;
+  const id = req.body.id || req.params.id;
 
   const idErrors = validateMemberId({ id });
   if (idErrors.length > 0) {

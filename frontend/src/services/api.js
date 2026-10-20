@@ -39,16 +39,16 @@ export const api = {
 
   // ── Stats ────────────────────────────────────────────────────────────────────
   async getStats() {
-    return getJSON(`${API_BASE_URL}/stats`);
+    return postJSON(`${API_BASE_URL}/stats`, {});
   },
 
   // ── Projects ─────────────────────────────────────────────────────────────────
   async getProjects() {
-    return getJSON(`${API_BASE_URL}/projects`);
+    return postJSON(`${API_BASE_URL}/projects/list`, {});
   },
 
   async getProject(id) {
-    return getJSON(`${API_BASE_URL}/projects/${id}`);
+    return postJSON(`${API_BASE_URL}/projects/detail`, { id });
   },
 
   async createProject(projectData) {
@@ -67,7 +67,7 @@ export const api = {
 
   // ── Members ──────────────────────────────────────────────────────────────────
   async getAllMembers() {
-    return getJSON(`${API_BASE_URL}/members`);
+    return postJSON(`${API_BASE_URL}/members/list`, {});
   },
 
   async addMember(projectId, memberData) {
@@ -85,7 +85,7 @@ export const api = {
 
   // ── Tasks ─────────────────────────────────────────────────────────────────────
   async getAllTasks() {
-    return getJSON(`${API_BASE_URL}/tasks`);
+    return postJSON(`${API_BASE_URL}/tasks/list`, {});
   },
 
   async addTask(projectId, taskData) {

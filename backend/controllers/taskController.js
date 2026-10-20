@@ -46,7 +46,8 @@ async function addTask(req, res) {
 
 // POST /api/tasks/update  (replaces PUT /api/tasks/:id)
 async function editTask(req, res) {
-  const { id, ...updateData } = req.body;
+  const { id: bodyId, ...updateData } = req.body;
+  const id = bodyId || req.params.id;
 
   const idErrors = validateTaskId({ id });
   if (idErrors.length > 0) {
@@ -68,7 +69,7 @@ async function editTask(req, res) {
 
 // POST /api/tasks/delete  (replaces DELETE /api/tasks/:id)
 async function removeTaskHandler(req, res) {
-  const { id } = req.body;
+  const id = req.body.id || req.params.id;
 
   const idErrors = validateTaskId({ id });
   if (idErrors.length > 0) {

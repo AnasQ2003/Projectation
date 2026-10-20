@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KanbanSquare, Lock, User, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
-import { encryptClientData } from '../utils/crypto';
+import { encryptClientData, decryptClientData } from '../utils/crypto';
 
 export default function LoginScreen({ onLoginSuccess }) {
   const [rememberMe, setRememberMe] = useState(() => {
@@ -12,8 +12,17 @@ export default function LoginScreen({ onLoginSuccess }) {
     return localStorage.getItem('projectation_remembered_username') || '';
   });
 
-  // Never pre-fill password from storage for security
-  const [password, setPassword] = useState('');
+  // Pre-fill password if Remember Me was selected by user
+  const [password, setPassword] = useState(() => {
+    try {
+      const isRemembered = localStorage.getItem('projectation_remember_me') === 'true';
+      if (!isRemembered) return '';
+      const savedPass = localStorage.getItem('projectation_remembered_password');
+      return savedPass ? decryptClientData(savedPass) : '';
+    } catch {
+      return '';
+    }
+  });
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,16 +36,16 @@ export default function LoginScreen({ onLoginSuccess }) {
     try {
       const data = await api.login(username, password);
 
-      // Persist or clear Remember Me credentials (username only — never password)
+      // Persist or clear Remember Me credentials (both username & encrypted password)
       if (rememberMe) {
         localStorage.setItem('projectation_remember_me', 'true');
         localStorage.setItem('projectation_remembered_username', username);
+        localStorage.setItem('projectation_remembered_password', encryptClientData(password));
       } else {
         localStorage.removeItem('projectation_remember_me');
         localStorage.removeItem('projectation_remembered_username');
+        localStorage.removeItem('projectation_remembered_password');
       }
-      // Always remove any old password that may have been saved
-      localStorage.removeItem('projectation_remembered_password');
 
       const adminUser = {
         ...data.user,
@@ -121,11 +130,22 @@ export default function LoginScreen({ onLoginSuccess }) {
               Username
             </label>
             <div style={{ position: 'relative' }}>
-              <User size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+              <User 
+                size={16} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '0.85rem', 
+                  top: '50%', 
+                  transform: 'translateY(-50%)', 
+                  color: 'var(--accent-primary)', 
+                  zIndex: 10, 
+                  pointerEvents: 'none' 
+                }} 
+              />
               <input
                 type="text"
                 className="form-input"
-                style={{ paddingLeft: '2.3rem' }}
+                style={{ paddingLeft: '2.45rem' }}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter username"
@@ -140,11 +160,22 @@ export default function LoginScreen({ onLoginSuccess }) {
               Password
             </label>
             <div style={{ position: 'relative' }}>
-              <Lock size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+              <Lock 
+                size={16} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '0.85rem', 
+                  top: '50%', 
+                  transform: 'translateY(-50%)', 
+                  color: 'var(--accent-primary)', 
+                  zIndex: 10, 
+                  pointerEvents: 'none' 
+                }} 
+              />
               <input
                 type={showPassword ? 'text' : 'password'}
                 className="form-input"
-                style={{ paddingLeft: '2.3rem', paddingRight: '2.3rem' }}
+                style={{ paddingLeft: '2.45rem', paddingRight: '2.45rem' }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
@@ -158,8 +189,15 @@ export default function LoginScreen({ onLoginSuccess }) {
                   right: '0.75rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: 'var(--text-dim)'
+                  color: 'var(--text-muted)',
+                  zIndex: 10,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px'
                 }}
+                title={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
