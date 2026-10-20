@@ -32,28 +32,14 @@ export default function ProjectCard({ project, onSelect, onDelete }) {
   return (
     <div
       onClick={() => onSelect(project.id)}
+      className="glass-card"
       style={{
-        backgroundColor: 'var(--bg-card)',
-        borderRadius: '12px',
-        border: '1px solid var(--border-subtle)',
         padding: '1.25rem',
         cursor: 'pointer',
-        transition: 'all 0.15s ease-in-out',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
-        boxShadow: 'var(--shadow-sm)'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.borderColor = 'var(--border-strong)';
-        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.borderColor = 'var(--border-subtle)';
-        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+        justifyContent: 'space-between'
       }}
     >
       <div>

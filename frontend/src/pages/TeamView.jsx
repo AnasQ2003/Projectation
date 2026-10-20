@@ -130,7 +130,7 @@ export default function TeamView({ onSelectProject }) {
   const overallTeamRate = totalAssignedTasks > 0 ? Math.round((totalCompletedTasks / totalAssignedTasks) * 100) : 0;
 
   return (
-    <div className="animate-fade-in" style={{ padding: '1.75rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="animate-fade-in page-container" style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
@@ -164,15 +164,11 @@ export default function TeamView({ onSelectProject }) {
         marginBottom: '1.75rem'
       }}>
         {/* Card 1: Total Team */}
-        <div style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '10px',
-          border: '1px solid var(--border-subtle)',
+        <div className="glass-card" style={{
           padding: '1.15rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: 'var(--shadow-sm)'
+          justifyContent: 'space-between'
         }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>
@@ -200,15 +196,11 @@ export default function TeamView({ onSelectProject }) {
         </div>
 
         {/* Card 2: Completed Work */}
-        <div style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '10px',
-          border: '1px solid var(--border-subtle)',
+        <div className="glass-card" style={{
           padding: '1.15rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: 'var(--shadow-sm)'
+          justifyContent: 'space-between'
         }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>
@@ -236,15 +228,11 @@ export default function TeamView({ onSelectProject }) {
         </div>
 
         {/* Card 3: Pending Work */}
-        <div style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '10px',
-          border: '1px solid var(--border-subtle)',
+        <div className="glass-card" style={{
           padding: '1.15rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: 'var(--shadow-sm)'
+          justifyContent: 'space-between'
         }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>
@@ -272,15 +260,11 @@ export default function TeamView({ onSelectProject }) {
         </div>
 
         {/* Card 4: Overall Velocity */}
-        <div style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '10px',
-          border: '1px solid var(--border-subtle)',
+        <div className="glass-card" style={{
           padding: '1.15rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: 'var(--shadow-sm)'
+          justifyContent: 'space-between'
         }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>
@@ -309,7 +293,7 @@ export default function TeamView({ onSelectProject }) {
       </div>
 
       {/* Filter and Search Bar */}
-      <div style={{
+      <div className="glass-panel" style={{
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
@@ -317,9 +301,7 @@ export default function TeamView({ onSelectProject }) {
         gap: '0.85rem',
         marginBottom: '1.5rem',
         padding: '0.75rem 1rem',
-        backgroundColor: 'var(--bg-surface)',
-        borderRadius: '10px',
-        border: '1px solid var(--border-subtle)'
+        borderRadius: '12px'
       }}>
         {/* Search */}
         <div style={{ position: 'relative', width: '320px' }}>
@@ -401,11 +383,7 @@ export default function TeamView({ onSelectProject }) {
           </button>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-          gap: '1.25rem'
-        }}>
+        <div className="grid-auto member-grid">
           {filteredMembers.map((m) => {
             const isExpanded = expandedMemberId === m.id;
             const completionRate = m.completion_rate || 0;

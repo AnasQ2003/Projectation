@@ -7,7 +7,8 @@ import {
   Clock, 
   Users, 
   Filter,
-  RotateCcw
+  RotateCcw,
+  ArrowUpRight
 } from 'lucide-react';
 import { api } from '../services/api';
 import ProjectCard from '../components/ProjectCard';
@@ -16,6 +17,7 @@ import { getDeadlineInfo } from '../utils/dateUtils';
 
 export default function Dashboard({ 
   onSelectProject, 
+  onNavigate,
   searchQuery, 
   setSearchQuery,
   showNewProjectModal, 
@@ -102,7 +104,7 @@ export default function Dashboard({
   const hasActiveFilter = selectedCategory !== 'ALL' || selectedUrgency !== 'ALL' || (searchQuery && searchQuery.trim().length > 0);
 
   return (
-    <div className="animate-fade-in" style={{ padding: '1.75rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="animate-fade-in page-container" style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header Banner */}
       <div style={{ marginBottom: '1.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -124,110 +126,129 @@ export default function Dashboard({
           </button>
         </div>
 
-        {/* 4 Clean Metric Cards */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-          gap: '1rem'
-        }}>
-          {/* Total Projects */}
-          <div style={{
-            backgroundColor: 'var(--bg-card)',
-            borderRadius: '10px',
-            border: '1px solid var(--border-subtle)',
-            padding: '1.15rem 1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
+        {/* 4 Clickable Glassmorphism Metric Cards */}
+        <div className="stats-row">
+          {/* Card 1: Total Projects */}
+          <div 
+            className="glass-card stat-card-clickable"
+            onClick={() => {
+              setSelectedCategory('ALL');
+              setSelectedUrgency('ALL');
+              if (setSearchQuery) setSearchQuery('');
+              document.getElementById('projects-grid-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            title="Click to view all projects"
+            style={{
+              padding: '1.15rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>
-                Total Projects
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Total Projects
+                </span>
+                <ArrowUpRight size={13} className="click-indicator" color="var(--accent-primary)" />
+              </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
                 {projects.length}
               </div>
-              <span style={{ fontSize: '0.725rem', color: 'var(--accent-success)', fontWeight: 500 }}>
+              <span style={{ fontSize: '0.725rem', color: 'var(--accent-success)', fontWeight: 600 }}>
                 Active repositories
               </span>
             </div>
             <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '42px',
+              height: '42px',
+              borderRadius: '11px',
               backgroundColor: 'var(--accent-primary-light)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--accent-primary)'
+              color: 'var(--accent-primary)',
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)'
             }}>
               <FolderKanban size={20} />
             </div>
           </div>
 
-          {/* Active Sprints */}
-          <div style={{
-            backgroundColor: 'var(--bg-card)',
-            borderRadius: '10px',
-            border: '1px solid var(--border-subtle)',
-            padding: '1.15rem 1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
+          {/* Card 2: Sprint Tasks */}
+          <div 
+            className="glass-card stat-card-clickable"
+            onClick={() => {
+              if (onNavigate) onNavigate('tasks');
+            }}
+            title="Click to manage all sprint tasks"
+            style={{
+              padding: '1.15rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>
-                Sprint Tasks
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Sprint Tasks
+                </span>
+                <ArrowUpRight size={13} className="click-indicator" color="var(--accent-primary)" />
+              </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--accent-primary)', marginTop: '0.2rem' }}>
                 {stats?.active_tasks || 0}
               </div>
-              <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)' }}>
+              <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 500 }}>
                 {stats?.completed_tasks || 0} completed
               </span>
             </div>
             <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '42px',
+              height: '42px',
+              borderRadius: '11px',
               backgroundColor: 'var(--accent-primary-light)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--accent-primary)'
+              color: 'var(--accent-primary)',
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)'
             }}>
               <CheckCircle2 size={20} />
             </div>
           </div>
 
-          {/* Team Members */}
-          <div style={{
-            backgroundColor: 'var(--bg-card)',
-            borderRadius: '10px',
-            border: '1px solid var(--border-subtle)',
-            padding: '1.15rem 1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
+          {/* Card 3: Team Members */}
+          <div 
+            className="glass-card stat-card-clickable"
+            onClick={() => {
+              if (onNavigate) onNavigate('team');
+            }}
+            title="Click to view team members"
+            style={{
+              padding: '1.15rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>
-                Team Members
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Team Members
+                </span>
+                <ArrowUpRight size={13} className="click-indicator" color="var(--accent-primary)" />
+              </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
                 {stats?.total_members || 0}
               </div>
-              <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)' }}>
+              <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 500 }}>
                 Assigned engineers
               </span>
             </div>
             <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '42px',
+              height: '42px',
+              borderRadius: '11px',
               backgroundColor: 'var(--bg-muted)',
               display: 'flex',
               alignItems: 'center',
@@ -238,21 +259,29 @@ export default function Dashboard({
             </div>
           </div>
 
-          {/* Deadline Alerts */}
-          <div style={{
-            backgroundColor: 'var(--bg-card)',
-            borderRadius: '10px',
-            border: urgentCount > 0 ? '1px solid var(--accent-danger-border)' : '1px solid var(--border-subtle)',
-            padding: '1.15rem 1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
+          {/* Card 4: Deadline Alerts */}
+          <div 
+            className="glass-card stat-card-clickable"
+            onClick={() => {
+              setSelectedUrgency(prev => prev === 'URGENT' ? 'ALL' : 'URGENT');
+              document.getElementById('projects-grid-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            title={urgentCount > 0 ? "Click to filter projects due soon or overdue" : "Click to view all healthy deadlines"}
+            style={{
+              padding: '1.15rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderColor: urgentCount > 0 ? 'var(--accent-danger-border)' : undefined
+            }}
+          >
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>
-                Deadline Alerts
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Deadline Alerts
+                </span>
+                <ArrowUpRight size={13} className="click-indicator" color={urgentCount > 0 ? "var(--accent-danger)" : "var(--accent-success)"} />
+              </div>
               <div style={{
                 fontSize: '1.65rem',
                 fontWeight: 800,
@@ -270,14 +299,15 @@ export default function Dashboard({
               </span>
             </div>
             <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '42px',
+              height: '42px',
+              borderRadius: '11px',
               backgroundColor: urgentCount > 0 ? 'var(--accent-danger-light)' : 'var(--accent-success-light)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: urgentCount > 0 ? 'var(--accent-danger)' : 'var(--accent-success)'
+              color: urgentCount > 0 ? 'var(--accent-danger)' : 'var(--accent-success)',
+              boxShadow: urgentCount > 0 ? '0 2px 8px rgba(220, 38, 38, 0.15)' : '0 2px 8px rgba(22, 163, 74, 0.15)'
             }}>
               <Clock size={20} />
             </div>
@@ -285,8 +315,8 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div style={{
+      {/* Filter Toolbar (Frosted Glass Panel) */}
+      <div className="glass-panel" style={{
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
@@ -294,9 +324,7 @@ export default function Dashboard({
         gap: '0.75rem',
         marginBottom: '1.5rem',
         padding: '0.75rem 1rem',
-        backgroundColor: 'var(--bg-surface)',
-        borderRadius: '10px',
-        border: '1px solid var(--border-subtle)'
+        borderRadius: '12px'
       }}>
         {/* Category Pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -444,11 +472,7 @@ export default function Dashboard({
           )}
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-          gap: '1.25rem'
-        }}>
+        <div id="projects-grid-section" className="grid-auto">
           {filteredProjects.map((proj) => (
             <ProjectCard
               key={proj.id}

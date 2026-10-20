@@ -1,162 +1,108 @@
+/**
+ * api.js — Centralised API client
+ * All data mutations use POST (no PUT or DELETE verbs).
+ */
+
 const API_BASE_URL = 'http://localhost:5000/api';
 
+// ─── Shared helpers ────────────────────────────────────────────────────────────
+
+async function postJSON(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
+async function getJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
+// ─── API surface ───────────────────────────────────────────────────────────────
+
 export const api = {
-  // Auth
+  // ── Auth ─────────────────────────────────────────────────────────────────────
   async login(username, password) {
-    const res = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Login failed');
-    }
-    return res.json();
+    return postJSON(`${API_BASE_URL}/auth/login`, { username, password });
   },
 
-  // Stats
+  // ── Stats ────────────────────────────────────────────────────────────────────
   async getStats() {
-    const res = await fetch(`${API_BASE_URL}/stats`);
-    if (!res.ok) throw new Error('Failed to fetch stats');
-    return res.json();
+    return getJSON(`${API_BASE_URL}/stats`);
   },
 
-  // Projects
+  // ── Projects ─────────────────────────────────────────────────────────────────
   async getProjects() {
-    const res = await fetch(`${API_BASE_URL}/projects`);
-    if (!res.ok) throw new Error('Failed to fetch projects');
-    return res.json();
+    return getJSON(`${API_BASE_URL}/projects`);
   },
 
   async getProject(id) {
-    const res = await fetch(`${API_BASE_URL}/projects/${id}`);
-    if (!res.ok) throw new Error('Failed to fetch project details');
-    return res.json();
+    return getJSON(`${API_BASE_URL}/projects/${id}`);
   },
 
   async createProject(projectData) {
-    const res = await fetch(`${API_BASE_URL}/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(projectData)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to create project');
-    }
-    return res.json();
+    return postJSON(`${API_BASE_URL}/projects`, projectData);
   },
 
+  /** POST /api/projects/update  (id + fields in body) */
   async updateProject(id, updateData) {
-    const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updateData)
-    });
-    if (!res.ok) throw new Error('Failed to update project');
-    return res.json();
+    return postJSON(`${API_BASE_URL}/projects/update`, { id, ...updateData });
   },
 
+  /** POST /api/projects/delete  (id in body) */
   async deleteProject(id) {
-    const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error('Failed to delete project');
-    return res.json();
+    return postJSON(`${API_BASE_URL}/projects/delete`, { id });
   },
 
-  // Members
-  async addMember(projectId, memberData) {
-    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/members`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(memberData)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to add member');
-    }
-    return res.json();
-  },
-
-  async deleteMember(memberId) {
-    const res = await fetch(`${API_BASE_URL}/members/${memberId}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error('Failed to delete member');
-    return res.json();
-  },
-
-  // Tasks
-  async addTask(projectId, taskData) {
-    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/tasks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(taskData)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to create task');
-    }
-    return res.json();
-  },
-
-  async updateTask(taskId, taskData) {
-    const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(taskData)
-    });
-    if (!res.ok) throw new Error('Failed to update task');
-    return res.json();
-  },
-
-  async deleteTask(taskId) {
-    const res = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error('Failed to delete task');
-    return res.json();
-  },
-
-  // Global Members
+  // ── Members ──────────────────────────────────────────────────────────────────
   async getAllMembers() {
-    const res = await fetch(`${API_BASE_URL}/members`);
-    if (!res.ok) throw new Error('Failed to fetch members');
-    return res.json();
+    return getJSON(`${API_BASE_URL}/members`);
+  },
+
+  async addMember(projectId, memberData) {
+    return postJSON(`${API_BASE_URL}/projects/${projectId}/members`, memberData);
   },
 
   async createMember(memberData) {
-    const res = await fetch(`${API_BASE_URL}/members`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(memberData)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to add member');
-    }
-    return res.json();
+    return postJSON(`${API_BASE_URL}/members`, memberData);
   },
 
-  // Global Tasks
+  /** POST /api/members/delete  (id in body) */
+  async deleteMember(memberId) {
+    return postJSON(`${API_BASE_URL}/members/delete`, { id: memberId });
+  },
+
+  // ── Tasks ─────────────────────────────────────────────────────────────────────
   async getAllTasks() {
-    const res = await fetch(`${API_BASE_URL}/tasks`);
-    if (!res.ok) throw new Error('Failed to fetch tasks');
-    return res.json();
+    return getJSON(`${API_BASE_URL}/tasks`);
+  },
+
+  async addTask(projectId, taskData) {
+    return postJSON(`${API_BASE_URL}/projects/${projectId}/tasks`, taskData);
   },
 
   async createTask(taskData) {
-    const res = await fetch(`${API_BASE_URL}/tasks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(taskData)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to create task');
-    }
-    return res.json();
+    return postJSON(`${API_BASE_URL}/tasks`, taskData);
+  },
+
+  /** POST /api/tasks/update  (id + fields in body) */
+  async updateTask(taskId, taskData) {
+    return postJSON(`${API_BASE_URL}/tasks/update`, { id: taskId, ...taskData });
+  },
+
+  /** POST /api/tasks/delete  (id in body) */
+  async deleteTask(taskId) {
+    return postJSON(`${API_BASE_URL}/tasks/delete`, { id: taskId });
   }
 };

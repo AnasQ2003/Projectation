@@ -42,7 +42,7 @@ export default function RoadmapView({ onSelectProject }) {
   });
 
   return (
-    <div className="animate-fade-in" style={{ padding: '1.75rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="animate-fade-in page-container" style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
@@ -119,12 +119,9 @@ export default function RoadmapView({ onSelectProject }) {
             return (
               <div
                 key={p.id}
+                className="glass-card"
                 style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border-subtle)',
                   padding: '1.5rem',
-                  boxShadow: 'var(--shadow-sm)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '1rem'

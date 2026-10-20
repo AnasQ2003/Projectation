@@ -7,12 +7,15 @@ import {
   Clock, 
   ChevronLeft, 
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from 'lucide-react';
 
 export default function Sidebar({ 
   collapsed, 
   setCollapsed, 
+  mobileOpen,
+  setMobileOpen,
   activeTab, 
   setActiveTab, 
   user,
@@ -26,19 +29,24 @@ export default function Sidebar({
   ];
 
   return (
-    <aside style={{
-      width: collapsed ? '72px' : '240px',
-      backgroundColor: 'var(--bg-surface)',
-      borderRight: '1px solid var(--border-subtle)',
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      position: 'sticky',
-      top: 0,
-      transition: 'width 0.2s ease',
-      zIndex: 50,
-      flexShrink: 0
-    }}>
+    <aside
+      className={`sidebar-responsive${mobileOpen ? ' open' : ''}`}
+      style={{
+        width: collapsed ? '72px' : '240px',
+        backgroundColor: 'var(--bg-surface)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderRight: '1px solid var(--border-subtle)',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        transition: 'width 0.2s ease',
+        zIndex: 50,
+        flexShrink: 0
+      }}
+    >
       {/* Brand Header */}
       <div style={{
         padding: '1.25rem 1rem',
@@ -74,8 +82,10 @@ export default function Sidebar({
           )}
         </div>
 
+        {/* Desktop collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
+          className="sidebar-collapse-btn"
           style={{
             width: '26px',
             height: '26px',
@@ -90,6 +100,26 @@ export default function Sidebar({
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+
+        {/* Mobile close button (shown via CSS on small screens) */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="sidebar-mobile-close"
+          style={{
+            display: 'none',
+            width: '26px',
+            height: '26px',
+            borderRadius: '6px',
+            backgroundColor: 'var(--bg-muted)',
+            border: '1px solid var(--border-subtle)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-muted)'
+          }}
+          title="Close menu"
+        >
+          <X size={14} />
         </button>
       </div>
 
@@ -157,7 +187,7 @@ export default function Sidebar({
         })}
       </div>
 
-      {/* Admin Profile: Anas */}
+      {/* Admin Profile */}
       <div style={{
         padding: '0.85rem',
         borderTop: '1px solid var(--border-subtle)',

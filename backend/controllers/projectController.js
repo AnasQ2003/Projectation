@@ -1,0 +1,108 @@
+/**
+ * Project Controller
+ * Layer 3: HTTP request/response handling
+ * Flow: Validator → Service → Model → Controller → Router → Module (server.js)
+ */
+const {
+  validateCreateProject,
+  validateUpdateProject,
+  validateProjectId
+} = require('../validators/projectValidator');
+
+const {
+  getAllProjects,
+  getProjectById,
+  createProject,
+  updateProject,
+  deleteProject
+} = require('../services/projectService');
+
+// GET /api/projects
+async function listProjects(req, res) {
+  try {
+    const projects = await getAllProjects();
+    return res.json(projects);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch projects' });
+  }
+}
+
+// GET /api/projects/:id
+async function getProject(req, res) {
+  const idErrors = validateProjectId(req.params);
+  if (idErrors.length > 0) {
+    return res.status(400).json({ error: idErrors[0], errors: idErrors });
+  }
+
+  try {
+    const project = await getProjectById(req.params.id);
+    return res.json(project);
+  } catch (err) {
+    if (err.message === 'Project not found') {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    return res.status(500).json({ error: 'Failed to fetch project' });
+  }
+}
+
+// POST /api/projects
+async function addProject(req, res) {
+  const errors = validateCreateProject(req.body);
+  if (errors.length > 0) {
+    return res.status(400).json({ error: errors[0], errors });
+  }
+
+  try {
+    const result = await createProject(req.body);
+    return res.status(201).json(result);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to create project' });
+  }
+}
+
+// POST /api/projects/update  (replaces PUT /api/projects/:id)
+async function editProject(req, res) {
+  const { id, ...updateData } = req.body;
+
+  const idErrors = validateProjectId({ id });
+  if (idErrors.length > 0) {
+    return res.status(400).json({ error: idErrors[0], errors: idErrors });
+  }
+
+  const bodyErrors = validateUpdateProject(updateData);
+  if (bodyErrors.length > 0) {
+    return res.status(400).json({ error: bodyErrors[0], errors: bodyErrors });
+  }
+
+  try {
+    const result = await updateProject(id, updateData);
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update project' });
+  }
+}
+
+// POST /api/projects/delete  (replaces DELETE /api/projects/:id)
+async function removeProjectHandler(req, res) {
+  const { id } = req.body;
+
+  const idErrors = validateProjectId({ id });
+  if (idErrors.length > 0) {
+    return res.status(400).json({ error: idErrors[0], errors: idErrors });
+  }
+
+  try {
+    const result = await deleteProject(id);
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to delete project' });
+  }
+}
+
+module.exports = {
+  listProjects,
+  getProject,
+  addProject,
+  editProject,
+  removeProjectHandler
+};

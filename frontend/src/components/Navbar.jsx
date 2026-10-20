@@ -1,64 +1,76 @@
 import React from 'react';
 import { 
   Search, 
-  Sun, 
-  Moon, 
   LogOut, 
   Plus,
-  ShieldCheck
+  Menu
 } from 'lucide-react';
 
 export default function Navbar({ 
-  theme, 
-  toggleTheme, 
   onLogout, 
   user, 
   searchQuery, 
   setSearchQuery,
-  onOpenNewProject
+  onOpenNewProject,
+  onToggleSidebar
 }) {
   return (
-    <header style={{
-      height: '60px',
-      padding: '0 1.5rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      position: 'sticky',
-      top: 0,
-      zIndex: 40,
-      backgroundColor: 'var(--bg-surface)',
-      borderBottom: '1px solid var(--border-subtle)'
-    }}>
+    <header
+      className="navbar-inner"
+      style={{
+        height: '60px',
+        padding: '0 1.5rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        zIndex: 40,
+        backgroundColor: 'var(--bg-surface)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid var(--border-subtle)',
+        gap: '0.75rem'
+      }}
+    >
+      {/* Mobile hamburger — only visible on small screens via CSS */}
+      <button
+        className="sidebar-mobile-toggle"
+        onClick={onToggleSidebar}
+        title="Toggle menu"
+        aria-label="Toggle sidebar"
+      >
+        <Menu size={18} />
+      </button>
+
       {/* Search Input */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: '1', maxWidth: '380px' }}>
-        <div style={{ position: 'relative', width: '100%' }}>
-          <Search size={16} style={{
-            position: 'absolute',
-            left: '0.75rem',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--text-dim)'
-          }} />
-          <input
-            type="text"
-            className="form-input"
-            style={{
-              paddingLeft: '2.2rem',
-              height: '36px',
-              fontSize: '0.84rem',
-              backgroundColor: 'var(--bg-app)',
-              borderRadius: '8px'
-            }}
-            placeholder="Search projects by name, key, or category..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+      <div className="navbar-search" style={{ position: 'relative' }}>
+        <Search size={16} style={{
+          position: 'absolute',
+          left: '0.75rem',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          color: 'var(--text-dim)'
+        }} />
+        <input
+          type="text"
+          className="form-input"
+          style={{
+            paddingLeft: '2.2rem',
+            height: '36px',
+            fontSize: '0.84rem',
+            backgroundColor: 'var(--bg-app)',
+            borderRadius: '8px',
+            width: '100%'
+          }}
+          placeholder="Search projects..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div className="navbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
         {onOpenNewProject && (
           <button 
             onClick={onOpenNewProject}
@@ -66,34 +78,12 @@ export default function Navbar({
             style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
           >
             <Plus size={15} />
-            <span>New Project</span>
+            <span className="navbar-btn-text">New Project</span>
           </button>
         )}
 
-        {/* Theme Switcher (Light is default, toggles dark on demand) */}
-        <button
-          onClick={toggleTheme}
-          style={{
-            width: '34px',
-            height: '34px',
-            borderRadius: '8px',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-muted)'
-          }}
-          title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
-        >
-          {theme === 'dark' ? (
-            <Sun size={17} color="#f59e0b" />
-          ) : (
-            <Moon size={17} color="#64748b" />
-          )}
-        </button>
 
-        {/* Top Right Logout Button */}
+        {/* Logout Button */}
         <button
           onClick={onLogout}
           style={{
@@ -106,7 +96,8 @@ export default function Navbar({
             color: 'var(--text-muted)',
             border: '1px solid var(--border-subtle)',
             fontSize: '0.825rem',
-            fontWeight: 500
+            fontWeight: 500,
+            flexShrink: 0
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'var(--accent-danger-light)';
@@ -121,7 +112,7 @@ export default function Navbar({
           title="Sign out"
         >
           <LogOut size={15} />
-          <span>Logout</span>
+          <span className="logout-label">Logout</span>
         </button>
       </div>
     </header>

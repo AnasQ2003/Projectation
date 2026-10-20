@@ -126,7 +126,7 @@ export default function NewProjectModal({ onClose, onProjectCreated }) {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
+          <div className="grid-2" style={{ display: 'grid', gap: '1rem', marginBottom: '1.2rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
                 Project Name *
@@ -154,7 +154,7 @@ export default function NewProjectModal({ onClose, onProjectCreated }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
+          <div className="grid-2" style={{ display: 'grid', gap: '1rem', marginBottom: '1.2rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
                 Category / Domain
@@ -190,7 +190,7 @@ export default function NewProjectModal({ onClose, onProjectCreated }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
+          <div className="grid-2" style={{ display: 'grid', gap: '1rem', marginBottom: '1.2rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
                 Kickoff / Start Date

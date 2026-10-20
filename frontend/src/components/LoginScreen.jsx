@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { KanbanSquare, Lock, User, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
+import { encryptClientData } from '../utils/crypto';
 
 export default function LoginScreen({ onLoginSuccess }) {
   const [rememberMe, setRememberMe] = useState(() => {
@@ -11,9 +12,8 @@ export default function LoginScreen({ onLoginSuccess }) {
     return localStorage.getItem('projectation_remembered_username') || '';
   });
 
-  const [password, setPassword] = useState(() => {
-    return localStorage.getItem('projectation_remembered_password') || '';
-  });
+  // Never pre-fill password from storage for security
+  const [password, setPassword] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,24 +27,24 @@ export default function LoginScreen({ onLoginSuccess }) {
     try {
       const data = await api.login(username, password);
 
-      // Persist or clear Remember Me credentials
+      // Persist or clear Remember Me credentials (username only — never password)
       if (rememberMe) {
         localStorage.setItem('projectation_remember_me', 'true');
         localStorage.setItem('projectation_remembered_username', username);
-        localStorage.setItem('projectation_remembered_password', password);
       } else {
         localStorage.removeItem('projectation_remember_me');
         localStorage.removeItem('projectation_remembered_username');
-        localStorage.removeItem('projectation_remembered_password');
       }
+      // Always remove any old password that may have been saved
+      localStorage.removeItem('projectation_remembered_password');
 
       const adminUser = {
         ...data.user,
         name: data.user.name || 'Admin',
         role: 'Lead Administrator'
       };
-      localStorage.setItem('projectation_token', data.token);
-      localStorage.setItem('projectation_user', JSON.stringify(adminUser));
+      localStorage.setItem('projectation_token', encryptClientData(data.token));
+      localStorage.setItem('projectation_user', encryptClientData(JSON.stringify(adminUser)));
       onLoginSuccess(adminUser);
     } catch (err) {
       setError(err.message || 'Invalid credentials');
@@ -62,15 +62,16 @@ export default function LoginScreen({ onLoginSuccess }) {
       padding: '1.5rem',
       backgroundColor: 'var(--bg-app)'
     }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '400px',
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: '12px',
-        padding: '2.25rem 2rem',
-        boxShadow: 'var(--shadow-md)'
-      }}>
+      <div 
+        className="glass-card"
+        style={{
+          width: '100%',
+          maxWidth: '400px',
+          borderRadius: '16px',
+          padding: '2.25rem 2rem',
+          boxShadow: '0 20px 50px -10px rgba(31, 38, 135, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.95)'
+        }}
+      >
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div style={{

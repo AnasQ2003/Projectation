@@ -145,7 +145,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ padding: '1.5rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="animate-fade-in page-container" style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* Top Header Actions */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <button onClick={onBack} className="btn-secondary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}>
@@ -188,13 +188,9 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
       </div>
 
       {/* Main Project Overview Card */}
-      <div style={{
-        backgroundColor: 'var(--bg-card)',
-        borderRadius: '12px',
-        border: '1px solid var(--border-subtle)',
+      <div className="glass-card" style={{
         padding: '1.5rem',
-        marginBottom: '1.5rem',
-        boxShadow: 'var(--shadow-sm)'
+        marginBottom: '1.5rem'
       }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '1.25rem', alignItems: 'flex-start' }}>
           {/* Left Title & Info */}
@@ -346,7 +342,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
       </div>
 
       {/* Tabs Navigation */}
-      <div style={{
+      <div className="tab-bar" style={{
         display: 'flex',
         gap: '0.35rem',
         borderBottom: '1px solid var(--border-subtle)',

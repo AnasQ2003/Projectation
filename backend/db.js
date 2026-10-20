@@ -1,5 +1,6 @@
 const sql = require('mssql');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const dbConfig = {
@@ -50,7 +51,7 @@ async function connectDB() {
 
   try {
     pool = await sql.connect(dbConfig);
-    console.log(`🔌 Connected to Microsoft SQL Server (${dbConfig.server} -> ${dbConfig.database})`);
+    console.log(`🔌 Connected to Microsoft SQL Server (${dbConfig.database})`);
     await initSchemaAndSeed();
     return pool;
   } catch (err) {
@@ -145,15 +146,18 @@ async function initSchemaAndSeed() {
       END
     `);
 
-    // Ensure Admin Users exist (anas and admin)
+    // Ensure Admin Users exist (anas and admin) — passwords hashed with bcrypt
     const adminCheck = await pool.request().query("SELECT * FROM Users WHERE username IN ('anas', 'admin')");
     if (adminCheck.recordset.length === 0) {
-      await pool.request().query(`
-        INSERT INTO Users (username, password, name, role) 
-        VALUES ('anas', 'admin123', 'Anas', 'Project Lead & Admin'),
-               ('admin', 'admin123', 'Anas', 'Project Lead & Admin');
-      `);
-      console.log('✅ Admin users initialized in SQL Server: anas & admin');
+      const hashedPassword = await bcrypt.hash('admin123', 12);
+      await pool.request()
+        .input('hash', sql.NVarChar, hashedPassword)
+        .query(`
+          INSERT INTO Users (username, password, name, role)
+          VALUES ('anas',  @hash, 'Anas', 'Project Lead & Admin'),
+                 ('admin', @hash, 'Anas', 'Project Lead & Admin');
+        `);
+      console.log('✅ Admin users initialized with encrypted credentials');
     }
 
     // Seed sample projects if empty

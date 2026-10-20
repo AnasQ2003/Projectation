@@ -132,7 +132,7 @@ export default function AllTasksView({ onSelectProject }) {
   const doneCount = tasks.filter(t => t.status === 'done').length;
 
   return (
-    <div className="animate-fade-in" style={{ padding: '1.75rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="animate-fade-in page-container" style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
@@ -166,15 +166,11 @@ export default function AllTasksView({ onSelectProject }) {
         marginBottom: '1.75rem'
       }}>
         {/* To Do */}
-        <div style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '10px',
-          border: '1px solid var(--border-subtle)',
+        <div className="glass-card" style={{
           padding: '1.15rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: 'var(--shadow-sm)'
+          justifyContent: 'space-between'
         }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>To Do</span>
@@ -187,15 +183,11 @@ export default function AllTasksView({ onSelectProject }) {
         </div>
 
         {/* In Progress */}
-        <div style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '10px',
-          border: '1px solid var(--border-subtle)',
+        <div className="glass-card" style={{
           padding: '1.15rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: 'var(--shadow-sm)'
+          justifyContent: 'space-between'
         }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>In Progress</span>
@@ -208,15 +200,11 @@ export default function AllTasksView({ onSelectProject }) {
         </div>
 
         {/* In Review */}
-        <div style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '10px',
-          border: '1px solid var(--border-subtle)',
+        <div className="glass-card" style={{
           padding: '1.15rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: 'var(--shadow-sm)'
+          justifyContent: 'space-between'
         }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>In Review</span>
@@ -229,15 +217,11 @@ export default function AllTasksView({ onSelectProject }) {
         </div>
 
         {/* Done */}
-        <div style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '10px',
-          border: '1px solid var(--border-subtle)',
+        <div className="glass-card" style={{
           padding: '1.15rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: 'var(--shadow-sm)'
+          justifyContent: 'space-between'
         }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>Completed</span>
@@ -251,7 +235,7 @@ export default function AllTasksView({ onSelectProject }) {
       </div>
 
       {/* Filter Toolbar */}
-      <div style={{
+      <div className="glass-panel" style={{
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
@@ -259,9 +243,7 @@ export default function AllTasksView({ onSelectProject }) {
         gap: '0.75rem',
         marginBottom: '1.5rem',
         padding: '0.75rem 1rem',
-        backgroundColor: 'var(--bg-surface)',
-        borderRadius: '10px',
-        border: '1px solid var(--border-subtle)'
+        borderRadius: '12px'
       }}>
         {/* Status Pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>

@@ -111,7 +111,7 @@ export default function NewTaskModal({ projectId, members = [], defaultStatus = 
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
+          <div className="grid-2" style={{ display: 'grid', gap: '1rem', marginBottom: '1.2rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
                 Column / Status
@@ -137,7 +137,7 @@ export default function NewTaskModal({ projectId, members = [], defaultStatus = 
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
+          <div className="grid-2" style={{ display: 'grid', gap: '1rem', marginBottom: '1.2rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
                 Assignee

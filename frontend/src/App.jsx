@@ -15,23 +15,12 @@ export default function App() {
   // Splash Screen State
   const [showSplash, setShowSplash] = useState(true);
 
-  // Authentication State
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('projectation_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  // Light Theme is DEFAULT (switches to dark only when toggled by Admin)
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('projectation_theme') || 'light';
-  });
+  // Authentication State — Starts as null so user ALWAYS sees Login Screen after loading screen
+  const [user, setUser] = useState(null);
 
   // Drawer / Sidebar State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('projects');
 
   // Navigation State
@@ -40,15 +29,20 @@ export default function App() {
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [totalProjectsCount, setTotalProjectsCount] = useState(0);
 
-  // Apply theme to DOM
+  // Theme: strictly white/light only
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('projectation_theme', theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('projectation_theme', 'light');
+  }, []);
 
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
-  };
+  // Close mobile sidebar on resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) setSidebarMobileOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
@@ -73,31 +67,39 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-app)' }}>
+    <div className="app-shell">
+      {/* Mobile sidebar backdrop */}
+      <div
+        className={`sidebar-backdrop${sidebarMobileOpen ? ' open' : ''}`}
+        onClick={() => setSidebarMobileOpen(false)}
+      />
+
       {/* Left Drawer / Sidebar */}
       <Sidebar
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
+        mobileOpen={sidebarMobileOpen}
+        setMobileOpen={setSidebarMobileOpen}
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
           setSelectedProjectId(null);
+          setSidebarMobileOpen(false);
         }}
         user={user}
         projectCount={totalProjectsCount}
       />
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
+      <div className="app-main">
         {/* Top Navbar */}
         <Navbar
-          theme={theme}
-          toggleTheme={toggleTheme}
           onLogout={handleLogout}
           user={user}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onOpenNewProject={() => setShowNewProjectModal(true)}
+          onToggleSidebar={() => setSidebarMobileOpen(prev => !prev)}
         />
 
         {/* View Router for all 4 sidebar options & Project Detail */}
@@ -123,6 +125,10 @@ export default function App() {
           ) : (
             <Dashboard
               onSelectProject={(id) => setSelectedProjectId(id)}
+              onNavigate={(tab) => {
+                setActiveTab(tab);
+                setSelectedProjectId(null);
+              }}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               showNewProjectModal={showNewProjectModal}
@@ -132,7 +138,7 @@ export default function App() {
           )}
         </main>
 
-        {/* Global Create Project Modal when inside project details or other views */}
+        {/* Global Create Project Modal */}
         {showNewProjectModal && (
           <NewProjectModal
             onClose={() => setShowNewProjectModal(false)}
