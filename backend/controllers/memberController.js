@@ -1,16 +1,13 @@
-/**
- * Member Controller
- * Layer 3: HTTP request/response handling
- * Flow: Validator → Service → Model → Controller → Router → Module (server.js)
- */
 const {
   validateCreateMember,
+  validateUpdateMember,
   validateMemberId
 } = require('../validators/memberValidator');
 
 const {
   getAllMembers,
   addMember,
+  updateMember,
   deleteMember
 } = require('../services/memberService');
 
@@ -43,6 +40,29 @@ async function createMember(req, res) {
   }
 }
 
+// POST /api/members/update or POST /api/members/:id
+async function editMemberHandler(req, res) {
+  const { id: bodyId, ...updateData } = req.body;
+  const id = bodyId || req.params.id;
+
+  const idErrors = validateMemberId({ id });
+  if (idErrors.length > 0) {
+    return res.status(400).json({ error: idErrors[0], errors: idErrors });
+  }
+
+  const bodyErrors = validateUpdateMember(updateData);
+  if (bodyErrors.length > 0) {
+    return res.status(400).json({ error: bodyErrors[0], errors: bodyErrors });
+  }
+
+  try {
+    const result = await updateMember(id, updateData);
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update member' });
+  }
+}
+
 // POST /api/members/delete  (replaces DELETE /api/members/:id)
 async function removeMemberHandler(req, res) {
   const id = req.body.id || req.params.id;
@@ -63,5 +83,6 @@ async function removeMemberHandler(req, res) {
 module.exports = {
   listMembers,
   createMember,
+  editMemberHandler,
   removeMemberHandler
 };

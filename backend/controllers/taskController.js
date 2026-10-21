@@ -1,8 +1,3 @@
-/**
- * Task Controller
- * Layer 3: HTTP request/response handling
- * Flow: Validator → Service → Model → Controller → Router → Module (server.js)
- */
 const {
   validateCreateTask,
   validateUpdateTask,

@@ -1,8 +1,3 @@
-/**
- * Auth Controller
- * Layer 3: HTTP request/response handling
- * Flow: Validator → Service → Model → Controller → Router → Module (server.js)
- */
 const { validateLogin } = require('../validators/authValidator');
 const { loginUser } = require('../services/authService');
 

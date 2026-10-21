@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   CheckSquare, 
   Plus, 
@@ -14,10 +15,13 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { getDeadlineInfo, formatDate } from '../utils/dateUtils';
+import TaskDetailModal from '../components/TaskDetailModal';
 
 export default function AllTasksView({ onSelectProject }) {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -41,12 +45,14 @@ export default function AllTasksView({ onSelectProject }) {
   const fetchTasksData = async () => {
     try {
       setLoading(true);
-      const [tasksData, projectsData] = await Promise.all([
+      const [tasksData, projectsData, membersData] = await Promise.all([
         api.getAllTasks(),
-        api.getProjects()
+        api.getProjects(),
+        api.getAllMembers()
       ]);
       setTasks(tasksData || []);
       setProjects(projectsData || []);
+      setMembers(membersData || []);
       if (projectsData && projectsData.length > 0 && !newProjectId) {
         setNewProjectId(projectsData[0].id.toString());
       }
@@ -358,6 +364,8 @@ export default function AllTasksView({ onSelectProject }) {
             return (
               <div
                 key={t.id}
+                onClick={() => setSelectedTask(t)}
+                className="task-row-interactive"
                 style={{
                   backgroundColor: 'var(--bg-card)',
                   borderRadius: '10px',
@@ -368,8 +376,21 @@ export default function AllTasksView({ onSelectProject }) {
                   justifyContent: 'space-between',
                   boxShadow: 'var(--shadow-sm)',
                   flexWrap: 'wrap',
-                  gap: '0.85rem'
+                  gap: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                  e.currentTarget.style.transform = 'none';
+                }}
+                title="Click to view and edit task details"
               >
                 {/* Left: Task Info & Project Code */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: '1 1 350px' }}>
@@ -390,7 +411,10 @@ export default function AllTasksView({ onSelectProject }) {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.2rem' }}>
                       <button
-                        onClick={() => onSelectProject && onSelectProject(t.project_id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onSelectProject) onSelectProject(t.project_id);
+                        }}
                         style={{
                           fontSize: '0.7rem',
                           fontFamily: 'var(--font-mono)',
@@ -401,7 +425,7 @@ export default function AllTasksView({ onSelectProject }) {
                           borderRadius: '4px',
                           border: '1px solid var(--border-subtle)'
                         }}
-                        title="Open project"
+                        title="Open project workspace"
                       >
                         {t.project_code || 'PRJ'}
                       </button>
@@ -471,6 +495,7 @@ export default function AllTasksView({ onSelectProject }) {
                   {/* Status Dropdown */}
                   <select
                     value={t.status}
+                    onClick={(e) => e.stopPropagation()}
                     onChange={(e) => handleStatusChange(t.id, e.target.value)}
                     style={{
                       fontSize: '0.75rem',
@@ -491,7 +516,10 @@ export default function AllTasksView({ onSelectProject }) {
                   </select>
 
                   <button
-                    onClick={() => handleDeleteTask(t.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTask(t.id);
+                    }}
                     style={{ padding: '0.3rem', color: 'var(--text-dim)' }}
                     onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-danger)'}
                     onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
@@ -507,7 +535,7 @@ export default function AllTasksView({ onSelectProject }) {
       )}
 
       {/* Add Task Modal */}
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
             <div style={{
@@ -625,15 +653,20 @@ export default function AllTasksView({ onSelectProject }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-                    Assignee Name
+                    Assignee
                   </label>
-                  <input
-                    type="text"
+                  <select
                     className="form-input"
-                    placeholder="e.g. Sarah Chen"
                     value={newAssignee}
                     onChange={(e) => setNewAssignee(e.target.value)}
-                  />
+                  >
+                    <option value="Unassigned">Unassigned</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.name}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -674,7 +707,26 @@ export default function AllTasksView({ onSelectProject }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Task Detail / Quick Edit Modal */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          members={members}
+          projects={projects}
+          onClose={() => setSelectedTask(null)}
+          onTaskUpdated={() => {
+            fetchTasksData();
+            setSelectedTask(null);
+          }}
+          onTaskDeleted={() => {
+            fetchTasksData();
+            setSelectedTask(null);
+          }}
+        />
       )}
     </div>
   );

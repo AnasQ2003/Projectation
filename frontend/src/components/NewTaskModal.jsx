@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, CheckSquare, Sparkles, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -44,7 +45,7 @@ export default function NewTaskModal({ projectId, members = [], defaultStatus = 
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '540px' }}>
         <div style={{
@@ -146,7 +147,7 @@ export default function NewTaskModal({ projectId, members = [], defaultStatus = 
                 <option value="Unassigned">Unassigned</option>
                 {members.map((m) => (
                   <option key={m.id} value={m.name}>
-                    {m.name} ({m.role})
+                    {m.name}
                   </option>
                 ))}
               </select>
@@ -189,6 +190,7 @@ export default function NewTaskModal({ projectId, members = [], defaultStatus = 
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

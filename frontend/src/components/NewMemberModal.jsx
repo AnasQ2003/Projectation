@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, UserPlus, Sparkles, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -46,7 +47,7 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
         <div style={{
@@ -185,6 +186,7 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -10,19 +11,37 @@ import {
   Trash2, 
   CheckCircle2, 
   UserPlus, 
-  DollarSign, 
-  Activity
+  Activity,
+  Edit3,
+  Check,
+  X
 } from 'lucide-react';
+
 import { api } from '../services/api';
 import { getDeadlineInfo, formatDate } from '../utils/dateUtils';
 import NewTaskModal from './NewTaskModal';
 import NewMemberModal from './NewMemberModal';
+import MemberDetailModal from './MemberDetailModal';
+import TaskDetailModal from './TaskDetailModal';
 
 export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('board'); // 'board' | 'members' | 'timeline' | 'activity'
+
+  // Consolidated Project Edit Modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editBudget, setEditBudget] = useState('');
+  const [editPriority, setEditPriority] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editDeadline, setEditDeadline] = useState('');
+  const [editStatus, setEditStatus] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Selected Items for Detail Modals
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
 
   // Modals
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -88,13 +107,44 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
     }
   };
 
-  // Handle project status update
-  const handleProjectStatusChange = async (newStatus) => {
+  // Open consolidated edit modal — pre-fill all fields from current project data
+  const handleOpenEditModal = () => {
+    setEditBudget(project.budget !== undefined ? project.budget.toString() : '');
+    setEditPriority(project.priority || 'Medium');
+    setEditStartDate(project.start_date || '');
+    setEditDeadline(project.deadline || '');
+    setEditStatus(project.status || 'In Progress');
+    setShowEditModal(true);
+  };
+
+  // Save all editable project fields in one call
+  const handleSaveProjectEdit = async (e) => {
+    e.preventDefault();
+    if (!editDeadline) {
+      alert('Deadline date is required');
+      return;
+    }
+    const num = parseFloat(editBudget);
+    if (editBudget && (isNaN(num) || num < 0)) {
+      alert('Please enter a valid budget amount');
+      return;
+    }
+    setEditSaving(true);
     try {
-      await api.updateProject(projectId, { status: newStatus });
-      setProject(prev => ({ ...prev, status: newStatus }));
+      const payload = {
+        status: editStatus,
+        priority: editPriority,
+        start_date: editStartDate || null,
+        deadline: editDeadline,
+        budget: editBudget ? num : project.budget
+      };
+      await api.updateProject(projectId, payload);
+      setProject(prev => ({ ...prev, ...payload }));
+      setShowEditModal(false);
     } catch (err) {
-      alert('Error updating status: ' + err.message);
+      alert('Error saving project settings: ' + err.message);
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -192,10 +242,11 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
         padding: '1.5rem',
         marginBottom: '1.5rem'
       }}>
+        {/* Top: Title/meta + Deadline badge */}
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '1.25rem', alignItems: 'flex-start' }}>
           {/* Left Title & Info */}
-          <div style={{ flex: '1 1 480px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 400px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.55rem', flexWrap: 'wrap' }}>
               <span style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.75rem',
@@ -220,46 +271,36 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                 {project.category}
               </span>
 
-              {/* Status Selector */}
-              <select
-                value={project.status}
-                onChange={(e) => handleProjectStatusChange(e.target.value)}
-                style={{
-                  padding: '0.2rem 0.55rem',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border-subtle)',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              >
-                <option value="Planning">Planning</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Code Review">Code Review</option>
-                <option value="QA Testing">QA Testing</option>
-                <option value="Completed">Completed</option>
-              </select>
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                padding: '0.15rem 0.55rem',
+                borderRadius: '6px',
+                backgroundColor: project.status === 'Completed' ? 'var(--accent-success-light)' : 'var(--accent-primary-light)',
+                color: project.status === 'Completed' ? 'var(--accent-success)' : 'var(--accent-primary)',
+                border: `1px solid ${project.status === 'Completed' ? 'var(--accent-success-border)' : 'var(--accent-primary-border)'}`
+              }}>
+                {project.status}
+              </span>
             </div>
 
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.4rem', lineHeight: 1.3 }}>
               {project.name}
             </h1>
 
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.5, maxWidth: '720px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.5, maxWidth: '600px' }}>
               {project.description || 'No detailed description provided.'}
             </p>
           </div>
 
-          {/* Right Deadline Card */}
+          {/* Right: Deadline card */}
           <div style={{
             backgroundColor: 'var(--bg-subtle)',
             border: `1px solid ${deadlineInfo.borderColor}`,
             borderRadius: '10px',
             padding: '1rem 1.25rem',
-            minWidth: '240px'
+            minWidth: '220px',
+            flexShrink: 0
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
               <span style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
@@ -282,7 +323,6 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
             <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.2rem' }}>
               {formatDate(project.deadline)}
             </div>
-
             <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <Calendar size={13} />
               <span>Kickoff: {formatDate(project.start_date)}</span>
@@ -290,33 +330,35 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
           </div>
         </div>
 
-        {/* Project Key Metrics Row */}
+        {/* Project Key Metrics Row — read-only, single Edit Settings button */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-          gap: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0',
           marginTop: '1.25rem',
           paddingTop: '1.25rem',
           borderTop: '1px solid var(--border-subtle)'
         }}>
-          <div>
+          {/* Sprint Completion */}
+          <div style={{ flex: '1 1 140px', padding: '0 1rem 0 0', borderRight: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.15rem' }}>Sprint Completion</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
               <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>{progressPercent}%</span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({completedTasksCount}/{tasks.length} tasks)</span>
             </div>
           </div>
 
-          <div>
+          {/* Allocated Budget */}
+          <div style={{ flex: '1 1 160px', padding: '0 1rem', borderRight: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.15rem' }}>Allocated Budget</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                PKR {project.budget ? Number(project.budget).toLocaleString() : '0'}
-              </span>
-            </div>
+            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
+              PKR {project.budget ? Number(project.budget).toLocaleString() : '—'}
+            </span>
           </div>
 
-          <div>
+          {/* Team Size */}
+          <div style={{ flex: '1 1 140px', padding: '0 1rem', borderRight: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.15rem' }}>Team Size</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <Users size={15} color="var(--accent-primary)" />
@@ -324,19 +366,33 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
             </div>
           </div>
 
-          <div>
+          {/* Priority Level */}
+          <div style={{ flex: '1 1 140px', padding: '0 1rem' }}>
             <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.15rem' }}>Priority Level</span>
             <span style={{
-              fontSize: '0.775rem',
-              fontWeight: 600,
-              padding: '0.15rem 0.5rem',
+              fontSize: '0.825rem',
+              fontWeight: 700,
+              padding: '0.2rem 0.65rem',
               borderRadius: '6px',
-              backgroundColor: project.priority === 'Urgent' ? 'var(--accent-danger-light)' : 'var(--accent-primary-light)',
-              color: project.priority === 'Urgent' ? 'var(--accent-danger)' : 'var(--accent-primary)',
+              backgroundColor: project.priority === 'Urgent' ? 'var(--accent-danger-light)' : project.priority === 'High' ? 'rgba(251,191,36,0.15)' : 'var(--accent-primary-light)',
+              color: project.priority === 'Urgent' ? 'var(--accent-danger)' : project.priority === 'High' ? '#d97706' : 'var(--accent-primary)',
               display: 'inline-block'
             }}>
               {project.priority} Priority
             </span>
+          </div>
+
+          {/* Single Edit Settings Button */}
+          <div style={{ flexShrink: 0, marginLeft: 'auto', paddingLeft: '1rem' }}>
+            <button
+              type="button"
+              onClick={handleOpenEditModal}
+              className="btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '0.45rem 0.9rem' }}
+            >
+              <Edit3 size={14} />
+              <span>Edit Settings</span>
+            </button>
           </div>
         </div>
       </div>
@@ -525,6 +581,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                       return (
                         <div
                           key={t.id}
+                          onClick={() => setSelectedTask(t)}
                           style={{
                             backgroundColor: 'var(--bg-card)',
                             borderRadius: '8px',
@@ -533,8 +590,19 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                             boxShadow: 'var(--shadow-sm)',
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '0.5rem'
+                            gap: '0.5rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
                           }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                          }}
+                          title="Click to view and edit task"
                         >
                           {/* Priority & Delete */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -550,7 +618,10 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                             </span>
 
                             <button
-                              onClick={() => handleDeleteTask(t.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTask(t.id);
+                              }}
                               style={{ color: 'var(--text-dim)', padding: '0.15rem' }}
                               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-danger)'}
                               onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
@@ -625,6 +696,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
 
                             <select
                               value={t.status}
+                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) => handleTaskStatusChange(t.id, e.target.value)}
                               style={{
                                 fontSize: '0.7rem',
@@ -676,6 +748,12 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
             {members.map((m) => (
               <div
                 key={m.id}
+                onClick={() => setSelectedMember({
+                  ...m,
+                  project_name: project.name,
+                  project_code: project.code,
+                  tasks: tasks.filter(t => t.assignee === m.name)
+                })}
                 style={{
                   backgroundColor: 'var(--bg-card)',
                   borderRadius: '10px',
@@ -684,8 +762,19 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  boxShadow: 'var(--shadow-sm)'
+                  boxShadow: 'var(--shadow-sm)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}
+                title="Click to view working info and edit member profile"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                   <div style={{
@@ -721,19 +810,52 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleDeleteMember(m.id)}
-                  style={{
-                    padding: '0.35rem',
-                    borderRadius: '6px',
-                    color: 'var(--text-dim)'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-danger)'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
-                  title="Remove member"
-                >
-                  <Trash2 size={15} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedMember({
+                        ...m,
+                        project_name: project.name,
+                        project_code: project.code,
+                        tasks: tasks.filter(t => t.assignee === m.name)
+                      });
+                    }}
+                    style={{
+                      padding: '0.2rem 0.5rem',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--accent-primary-light)',
+                      color: 'var(--accent-primary)',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                    title="View & Edit"
+                  >
+                    Details
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteMember(m.id);
+                    }}
+                    style={{
+                      padding: '0.35rem',
+                      borderRadius: '6px',
+                      color: 'var(--text-dim)',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-danger)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
+                    title="Remove member"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -764,9 +886,21 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
             marginBottom: '1.5rem'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div>
+              <div
+                onClick={() => {
+                  setStartDateVal(project.start_date || '');
+                  setDeadlineVal(project.deadline || '');
+                  setEditingTimeline(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={{ cursor: 'pointer' }}
+                title="Click to edit kickoff date"
+              >
                 <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block' }}>KICKOFF</span>
-                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{formatDate(project.start_date)}</span>
+                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  {formatDate(project.start_date)}
+                  <Edit2 size={12} color="var(--text-dim)" />
+                </span>
               </div>
 
               <div style={{ textAlign: 'center' }}>
@@ -781,9 +915,21 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                 </span>
               </div>
 
-              <div style={{ textAlign: 'right' }}>
+              <div
+                onClick={() => {
+                  setStartDateVal(project.start_date || '');
+                  setDeadlineVal(project.deadline || '');
+                  setEditingTimeline(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={{ textAlign: 'right', cursor: 'pointer' }}
+                title="Click to edit final deadline"
+              >
                 <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block' }}>FINAL DEADLINE</span>
-                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{formatDate(project.deadline)}</span>
+                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.35rem' }}>
+                  {formatDate(project.deadline)}
+                  <Edit2 size={12} color="var(--text-dim)" />
+                </span>
               </div>
             </div>
 
@@ -946,6 +1092,167 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
           onClose={() => setShowMemberModal(false)}
           onMemberAdded={fetchProjectDetails}
         />
+      )}
+
+      {/* Member Working Info & Admin Edit Modal */}
+      {selectedMember && (
+        <MemberDetailModal
+          member={selectedMember}
+          projects={[project]}
+          onClose={() => setSelectedMember(null)}
+          onMemberUpdated={() => {
+            fetchProjectDetails();
+            setSelectedMember(null);
+          }}
+          onTaskAssigned={() => {
+            fetchProjectDetails();
+            setSelectedMember(null);
+          }}
+        />
+      )}
+
+      {/* Task Detail / Edit Modal */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          members={members}
+          projects={[project]}
+          onClose={() => setSelectedTask(null)}
+          onTaskUpdated={() => {
+            fetchProjectDetails();
+            setSelectedTask(null);
+          }}
+          onTaskDeleted={() => {
+            fetchProjectDetails();
+            setSelectedTask(null);
+          }}
+        />
+      )}
+
+      {/* ── Edit Project Settings Modal ─────────────────── */}
+      {showEditModal && createPortal(
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            {/* Header */}
+            <div style={{
+              padding: '1.25rem 1.6rem',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{
+                  width: '34px', height: '34px', borderRadius: '8px',
+                  backgroundColor: 'var(--accent-primary)', color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <Edit3 size={16} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>Edit Project Settings</h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{project.code} · {project.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowEditModal(false)} style={{ padding: '0.4rem', color: 'var(--text-muted)' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveProjectEdit} style={{ padding: '1.6rem', display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+
+              {/* Status */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                  Project Status
+                </label>
+                <select
+                  className="form-input"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                >
+                  <option value="Planning">Planning</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Code Review">Code Review</option>
+                  <option value="QA Testing">QA Testing</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+
+              {/* Priority */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                  Priority Level
+                </label>
+                <select
+                  className="form-input"
+                  value={editPriority}
+                  onChange={(e) => setEditPriority(e.target.value)}
+                >
+                  <option value="Low">Low Priority</option>
+                  <option value="Medium">Medium Priority</option>
+                  <option value="High">High Priority</option>
+                  <option value="Urgent">Urgent Priority</option>
+                </select>
+              </div>
+
+              {/* Budget */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                  Allocated Budget (PKR)
+                </label>
+                <input
+                  type="number"
+                  className="form-input"
+                  placeholder="e.g. 45000"
+                  value={editBudget}
+                  onChange={(e) => setEditBudget(e.target.value)}
+                  min="0"
+                />
+              </div>
+
+              {/* Timeline */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                    Kickoff Date
+                  </label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                    Final Deadline *
+                  </label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={editDeadline}
+                    onChange={(e) => setEditDeadline(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.25rem' }}>
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn-secondary" disabled={editSaving}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={editSaving}>
+                  <Check size={15} />
+                  <span>{editSaving ? 'Saving...' : 'Save Changes'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

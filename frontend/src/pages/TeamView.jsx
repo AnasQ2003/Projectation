@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Users, 
   UserPlus, 
@@ -15,9 +16,12 @@ import {
   Sparkles,
   TrendingUp,
   AlertCircle,
-  X
+  X,
+  Edit3
 } from 'lucide-react';
+
 import { api } from '../services/api';
+import MemberDetailModal from '../components/MemberDetailModal';
 
 export default function TeamView({ onSelectProject }) {
   const [members, setMembers] = useState([]);
@@ -26,6 +30,7 @@ export default function TeamView({ onSelectProject }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('ALL');
   const [expandedMemberId, setExpandedMemberId] = useState(null);
+  const [selectedMember, setSelectedMember] = useState(null);
 
   // Add Member Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -392,6 +397,8 @@ export default function TeamView({ onSelectProject }) {
             return (
               <div
                 key={m.id}
+                onClick={() => setSelectedMember(m)}
+                className="member-card-interactive"
                 style={{
                   backgroundColor: 'var(--bg-card)',
                   borderRadius: '12px',
@@ -401,58 +408,104 @@ export default function TeamView({ onSelectProject }) {
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  transition: 'border-color 0.15s ease'
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                  e.currentTarget.style.boxShadow = '0 6px 18px rgba(37, 99, 235, 0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
                 }}
               >
                 <div>
-                  {/* Top: Avatar, Name, Role, Delete */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  {/* Top: Avatar, Name, Role + compact action icons */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.85rem', gap: '0.5rem', minWidth: 0 }}>
+                    {/* Left: avatar + info */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
                       <div style={{
-                        width: '46px',
-                        height: '46px',
-                        borderRadius: '12px',
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '11px',
                         backgroundColor: m.avatar_color || '#2563eb',
                         color: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 800,
-                        fontSize: '1.1rem',
+                        fontSize: '1rem',
                         flexShrink: 0,
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                       }}>
                         {m.name.slice(0, 2).toUpperCase()}
                       </div>
 
-                      <div>
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.15rem' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <h3 style={{ fontSize: '0.975rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {m.name}
                         </h3>
                         <div style={{
-                          fontSize: '0.75rem',
+                          fontSize: '0.725rem',
                           fontWeight: 600,
                           color: 'var(--accent-primary)',
-                          marginBottom: '0.2rem'
+                          marginBottom: '0.15rem',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
                         }}>
                           {m.role}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <Mail size={12} />
-                          <span>{m.email}</span>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '0.25rem', minWidth: 0 }}>
+                          <Mail size={11} style={{ flexShrink: 0 }} />
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.email}</span>
                         </div>
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleDeleteMember(m.id, m.name)}
-                      style={{ padding: '0.35rem', color: 'var(--text-dim)' }}
-                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-danger)'}
-                      onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
-                      title="Remove member"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                    {/* Right: compact icon-only action buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMember(m);
+                        }}
+                        style={{
+                          width: '28px', height: '28px',
+                          borderRadius: '6px',
+                          backgroundColor: 'var(--accent-primary-light)',
+                          color: 'var(--accent-primary)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}
+                        title="Assign task / edit member"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMember(m.id, m.name);
+                        }}
+                        style={{
+                          width: '28px', height: '28px',
+                          borderRadius: '6px',
+                          backgroundColor: 'transparent',
+                          color: 'var(--text-dim)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--accent-danger-light)'; e.currentTarget.style.color = 'var(--accent-danger)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-dim)'; }}
+                        title="Remove member"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Project Tag */}
@@ -634,7 +687,7 @@ export default function TeamView({ onSelectProject }) {
       )}
 
       {/* Add Member Modal */}
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
             <div style={{
@@ -794,7 +847,25 @@ export default function TeamView({ onSelectProject }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Member Details / Working Info & Edit Modal */}
+      {selectedMember && (
+        <MemberDetailModal
+          member={selectedMember}
+          projects={projects}
+          onClose={() => setSelectedMember(null)}
+          onMemberUpdated={() => {
+            fetchData();
+            setSelectedMember(null);
+          }}
+          onTaskAssigned={() => {
+            fetchData();
+            setSelectedMember(null);
+          }}
+        />
       )}
     </div>
   );

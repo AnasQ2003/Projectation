@@ -8,11 +8,14 @@ import {
   Users, 
   Filter,
   RotateCcw,
-  ArrowUpRight
+  ArrowUpRight,
+  Settings2,
+  Edit2
 } from 'lucide-react';
 import { api } from '../services/api';
 import ProjectCard from '../components/ProjectCard';
 import NewProjectModal from '../components/NewProjectModal';
+import CategoryManagerModal, { getStoredCategories, saveStoredCategories } from '../components/CategoryManagerModal';
 import { getDeadlineInfo } from '../utils/dateUtils';
 
 export default function Dashboard({ 
@@ -29,6 +32,8 @@ export default function Dashboard({
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedUrgency, setSelectedUrgency] = useState('ALL');
+  const [categories, setCategories] = useState(() => getStoredCategories());
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
@@ -39,6 +44,7 @@ export default function Dashboard({
       ]);
       setProjects(projectsData || []);
       setStats(statsData);
+      setCategories(getStoredCategories(projectsData || []));
       if (onProjectsLoaded) {
         onProjectsLoaded(projectsData ? projectsData.length : 0);
       }
@@ -333,7 +339,21 @@ export default function Dashboard({
             <span>Category:</span>
           </div>
 
-          {['ALL', 'Full Stack SaaS', 'Fintech Mobile', 'Artificial Intelligence', 'Healthcare Cloud'].map((cat) => (
+          <button
+            onClick={() => setSelectedCategory('ALL')}
+            style={{
+              fontSize: '0.75rem',
+              padding: '0.25rem 0.65rem',
+              borderRadius: '6px',
+              fontWeight: selectedCategory === 'ALL' ? 600 : 500,
+              backgroundColor: selectedCategory === 'ALL' ? 'var(--accent-primary)' : 'var(--bg-muted)',
+              color: selectedCategory === 'ALL' ? '#ffffff' : 'var(--text-muted)'
+            }}
+          >
+            ALL
+          </button>
+
+          {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
@@ -349,6 +369,28 @@ export default function Dashboard({
               {cat}
             </button>
           ))}
+
+          {/* Admin Add/Edit Filters Actions */}
+          <button
+            onClick={() => setShowCategoryModal(true)}
+            style={{
+              fontSize: '0.75rem',
+              padding: '0.25rem 0.55rem',
+              borderRadius: '6px',
+              fontWeight: 600,
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--accent-primary)',
+              border: '1px dashed var(--accent-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              cursor: 'pointer'
+            }}
+            title="Add or edit category filters"
+          >
+            <Plus size={12} />
+            <span>Add / Edit Filter</span>
+          </button>
         </div>
 
         {/* Urgency Filter and Clear Filters button */}
@@ -489,6 +531,21 @@ export default function Dashboard({
         <NewProjectModal
           onClose={() => setShowNewProjectModal(false)}
           onProjectCreated={handleProjectCreated}
+        />
+      )}
+
+      {/* Admin Category Filters Manager Modal */}
+      {showCategoryModal && (
+        <CategoryManagerModal
+          categories={categories}
+          projects={projects}
+          onClose={() => setShowCategoryModal(false)}
+          onUpdateCategories={(newCategories) => {
+            setCategories(newCategories);
+            if (selectedCategory !== 'ALL' && !newCategories.includes(selectedCategory)) {
+              setSelectedCategory('ALL');
+            }
+          }}
         />
       )}
     </div>

@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, FolderPlus, Sparkles, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
+import { getStoredCategories } from './CategoryManagerModal';
 
 export default function NewProjectModal({ onClose, onProjectCreated }) {
+  const availableCategories = getStoredCategories();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [category, setCategory] = useState('Full Stack SaaS');
+  const [category, setCategory] = useState(availableCategories[0] || 'Full Stack SaaS');
   const [priority, setPriority] = useState('High');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -63,7 +66,7 @@ export default function NewProjectModal({ onClose, onProjectCreated }) {
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
         {/* Header */}
@@ -164,12 +167,9 @@ export default function NewProjectModal({ onClose, onProjectCreated }) {
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
-                <option value="Full Stack SaaS">Full Stack SaaS</option>
-                <option value="Fintech Mobile">Fintech Mobile</option>
-                <option value="Artificial Intelligence">Artificial Intelligence</option>
-                <option value="Healthcare Cloud">Healthcare Cloud</option>
-                <option value="E-Commerce Ecosystem">E-Commerce Ecosystem</option>
-                <option value="DevOps & Infrastructure">DevOps & Infrastructure</option>
+                {availableCategories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
             </div>
 
@@ -255,6 +255,7 @@ export default function NewProjectModal({ onClose, onProjectCreated }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

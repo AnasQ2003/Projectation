@@ -78,6 +78,11 @@ export const api = {
     return postJSON(`${API_BASE_URL}/members`, memberData);
   },
 
+  /** POST /api/members/update (id + fields in body) */
+  async updateMember(memberId, updateData) {
+    return postJSON(`${API_BASE_URL}/members/update`, { id: memberId, ...updateData });
+  },
+
   /** POST /api/members/delete  (id in body) */
   async deleteMember(memberId) {
     return postJSON(`${API_BASE_URL}/members/delete`, { id: memberId });

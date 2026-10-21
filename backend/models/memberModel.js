@@ -69,6 +69,43 @@ async function insertMember({ project_id, name, email, role, avatar_color }) {
 }
 
 /**
+ * Update an existing member
+ */
+async function modifyMember(memberId, { name, email, role, project_id, avatar_color }) {
+  let oldMember = null;
+  if (name !== undefined) {
+    const prevRes = await executeQuery('SELECT * FROM Members WHERE id = @id', { id: memberId });
+    oldMember = prevRes.recordset[0];
+  }
+
+  const query = `
+    UPDATE Members
+    SET name = COALESCE(@name, name),
+        email = COALESCE(@email, email),
+        role = COALESCE(@role, role),
+        project_id = COALESCE(@pid, project_id),
+        avatar_color = COALESCE(@color, avatar_color)
+    WHERE id = @id;
+  `;
+
+  await executeQuery(query, {
+    name: name !== undefined ? name : null,
+    email: email !== undefined ? email : null,
+    role: role !== undefined ? role : null,
+    pid: project_id !== undefined ? parseInt(project_id) : null,
+    color: avatar_color !== undefined ? avatar_color : null,
+    id: memberId
+  });
+
+  if (oldMember && oldMember.name && name && oldMember.name !== name) {
+    await executeQuery(
+      'UPDATE Tasks SET assignee = @newName WHERE assignee = @oldName',
+      { newName: name, oldName: oldMember.name }
+    );
+  }
+}
+
+/**
  * Delete a member by ID
  */
 async function removeMember(memberId) {
@@ -78,5 +115,6 @@ async function removeMember(memberId) {
 module.exports = {
   fetchAllMembers,
   insertMember,
+  modifyMember,
   removeMember
 };

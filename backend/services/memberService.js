@@ -5,6 +5,7 @@
 const {
   fetchAllMembers,
   insertMember,
+  modifyMember,
   removeMember
 } = require('../models/memberModel');
 
@@ -16,6 +17,11 @@ async function addMember(data) {
   return insertMember(data);
 }
 
+async function updateMember(id, data) {
+  await modifyMember(parseInt(id), data);
+  return { message: 'Member updated successfully' };
+}
+
 async function deleteMember(id) {
   await removeMember(parseInt(id));
   return { message: 'Member removed successfully' };
@@ -24,5 +30,6 @@ async function deleteMember(id) {
 module.exports = {
   getAllMembers,
   addMember,
+  updateMember,
   deleteMember
 };

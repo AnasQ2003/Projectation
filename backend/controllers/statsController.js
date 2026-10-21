@@ -1,7 +1,3 @@
-/**
- * Stats Controller
- * Layer 3: HTTP request/response handling
- */
 const { fetchGlobalStats } = require('../models/statsModel');
 
 async function getStats(req, res) {

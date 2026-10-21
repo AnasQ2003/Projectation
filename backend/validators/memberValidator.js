@@ -27,6 +27,21 @@ function validateCreateMember({ project_id, name, email, role }) {
   return errors;
 }
 
+function validateUpdateMember(body) {
+  const errors = [];
+  if (!body || typeof body !== 'object') {
+    errors.push('Request body is required');
+    return errors;
+  }
+  if (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim().length === 0)) {
+    errors.push('Member name must be a non-empty string');
+  }
+  if (body.email !== undefined && (!body.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()))) {
+    errors.push('A valid email address is required');
+  }
+  return errors;
+}
+
 function validateMemberId({ id }) {
   const errors = [];
   const parsed = parseInt(id);
@@ -38,5 +53,6 @@ function validateMemberId({ id }) {
 
 module.exports = {
   validateCreateMember,
+  validateUpdateMember,
   validateMemberId
 };
