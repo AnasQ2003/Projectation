@@ -12,6 +12,7 @@ import {
   CheckCircle2, 
   UserPlus, 
   Activity,
+  Edit2,
   Edit3,
   Check,
   X
@@ -887,12 +888,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div
-                onClick={() => {
-                  setStartDateVal(project.start_date || '');
-                  setDeadlineVal(project.deadline || '');
-                  setEditingTimeline(true);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
+                onClick={handleOpenEditModal}
                 style={{ cursor: 'pointer' }}
                 title="Click to edit kickoff date"
               >
@@ -916,12 +912,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
               </div>
 
               <div
-                onClick={() => {
-                  setStartDateVal(project.start_date || '');
-                  setDeadlineVal(project.deadline || '');
-                  setEditingTimeline(true);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
+                onClick={handleOpenEditModal}
                 style={{ textAlign: 'right', cursor: 'pointer' }}
                 title="Click to edit final deadline"
               >

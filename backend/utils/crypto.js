@@ -1,8 +1,8 @@
 /**
  * crypto.js — Secure Data Encryption, Decryption & Masking Utility
  * 
- * Protects sensitive application data from being exposed in logs and console.
- * Uses AES-256-GCM authenticated encryption for maximum security.
+ * Protects sensitive application data from being exposed in logs, console, and network payloads.
+ * Supports AES-256-GCM authenticated encryption for database/tokens and transport encryption for client payloads.
  */
 
 const crypto = require('crypto');
@@ -14,6 +14,7 @@ const KEY_LENGTH = 32;
 
 // Default secret key derived from environment or secure fallback
 const SECRET_PASSPHRASE = process.env.ENCRYPTION_SECRET || 'Projectation-Secure-Key-2026-X9@Dagger';
+const TRANSPORT_SECRET = SECRET_PASSPHRASE;
 
 /**
  * Derives a 32-byte cryptographic key from passphrase and salt
@@ -23,7 +24,7 @@ function deriveKey(salt) {
 }
 
 /**
- * Encrypt a plain text string into a secure hex string
+ * Encrypt a plain text string into a secure hex string (AES-256-GCM)
  * Returns format: salt:iv:authTag:encryptedData
  */
 function encrypt(text) {
@@ -43,7 +44,7 @@ function encrypt(text) {
 }
 
 /**
- * Decrypt an encrypted hex string back to original plain text
+ * Decrypt an AES-256-GCM encrypted hex string back to original plain text
  */
 function decrypt(cipherString) {
   if (!cipherString || typeof cipherString !== 'string') return cipherString;
@@ -73,10 +74,53 @@ function decrypt(cipherString) {
 }
 
 /**
- * Recursively masks sensitive fields in objects for safe logging
- * Replaces values of password, token, authorization, etc. with [ENCRYPTED/MASKED]
+ * Decrypts transport payload sent by frontend client
  */
-const SENSITIVE_KEYS = ['password', 'token', 'authorization', 'secret', 'key', 'credit_card', 'ssn'];
+function decryptTransportPayload(b64) {
+  if (!b64 || typeof b64 !== 'string') return b64;
+  try {
+    const decoded = decodeURIComponent(Buffer.from(b64, 'base64').toString('utf8'));
+    let res = '';
+    for (let i = 0; i < decoded.length; i++) {
+      res += String.fromCharCode(decoded.charCodeAt(i) ^ TRANSPORT_SECRET.charCodeAt(i % TRANSPORT_SECRET.length));
+    }
+    return JSON.parse(res);
+  } catch (err) {
+    throw new Error('Failed to decrypt payload: ' + err.message);
+  }
+}
+
+/**
+ * Encrypts payload for client-server transport
+ */
+function encryptTransportPayload(data) {
+  if (!data) return data;
+  const str = typeof data === 'object' ? JSON.stringify(data) : String(data);
+  let res = '';
+  for (let i = 0; i < str.length; i++) {
+    res += String.fromCharCode(str.charCodeAt(i) ^ TRANSPORT_SECRET.charCodeAt(i % TRANSPORT_SECRET.length));
+  }
+  return Buffer.from(encodeURIComponent(res), 'utf8').toString('base64');
+}
+
+/**
+ * Express middleware that automatically unpacks encrypted request bodies
+ */
+function decryptPayloadMiddleware(req, res, next) {
+  if (req.body && (req.body._encrypted || req.body.encrypted) && req.body.payload) {
+    try {
+      req.body = decryptTransportPayload(req.body.payload);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid encrypted payload' });
+    }
+  }
+  next();
+}
+
+/**
+ * Recursively masks sensitive fields in objects for safe logging
+ */
+const SENSITIVE_KEYS = ['password', 'token', 'authorization', 'secret', 'key', 'credit_card', 'ssn', 'payload', '_encrypted'];
 
 function maskSensitive(data) {
   if (!data) return data;
@@ -106,7 +150,6 @@ function maskSensitive(data) {
 function safeLoggerMiddleware(req, res, next) {
   const timestamp = new Date().toISOString();
   const safeBody = maskSensitive(req.body);
-  const safeQuery = maskSensitive(req.query);
 
   if (process.env.NODE_ENV !== 'production') {
     const hasBody = req.body && Object.keys(req.body).length > 0;
@@ -120,6 +163,9 @@ function safeLoggerMiddleware(req, res, next) {
 module.exports = {
   encrypt,
   decrypt,
+  encryptTransportPayload,
+  decryptTransportPayload,
+  decryptPayloadMiddleware,
   maskSensitive,
   safeLoggerMiddleware
 };

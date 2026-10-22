@@ -12,17 +12,13 @@ export default function LoginScreen({ onLoginSuccess }) {
     return localStorage.getItem('projectation_remembered_username') || '';
   });
 
-  // Pre-fill password if Remember Me was selected by user
-  const [password, setPassword] = useState(() => {
-    try {
-      const isRemembered = localStorage.getItem('projectation_remember_me') === 'true';
-      if (!isRemembered) return '';
-      const savedPass = localStorage.getItem('projectation_remembered_password');
-      return savedPass ? decryptClientData(savedPass) : '';
-    } catch {
-      return '';
-    }
-  });
+  // Never store or pre-fill raw passwords from localStorage
+  const [password, setPassword] = useState('');
+
+  // Clear any legacy stored passwords on mount for privacy & security
+  React.useEffect(() => {
+    localStorage.removeItem('projectation_remembered_password');
+  }, []);
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,16 +32,15 @@ export default function LoginScreen({ onLoginSuccess }) {
     try {
       const data = await api.login(username, password);
 
-      // Persist or clear Remember Me credentials (both username & encrypted password)
+      // Persist or clear Remember Me (remembers username only, NEVER the password)
       if (rememberMe) {
         localStorage.setItem('projectation_remember_me', 'true');
         localStorage.setItem('projectation_remembered_username', username);
-        localStorage.setItem('projectation_remembered_password', encryptClientData(password));
       } else {
         localStorage.removeItem('projectation_remember_me');
         localStorage.removeItem('projectation_remembered_username');
-        localStorage.removeItem('projectation_remembered_password');
       }
+      localStorage.removeItem('projectation_remembered_password');
 
       const adminUser = {
         ...data.user,

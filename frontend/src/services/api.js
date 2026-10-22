@@ -1,16 +1,35 @@
 /**
  * api.js — Centralised API client
  * All data mutations use POST (no PUT or DELETE verbs).
+ * Credentials and sensitive transport payloads are protected against DevTools inspection.
  */
+
+import { encryptTransportPayload, decryptClientData } from '../utils/crypto';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
+function getAuthHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  try {
+    const rawToken = localStorage.getItem('projectation_token');
+    if (rawToken) {
+      const token = decryptClientData(rawToken);
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+  } catch {
+    // Ignore storage decryption errors
+  }
+  return headers;
+}
+
 async function postJSON(url, body) {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(body)
   });
   if (!res.ok) {
@@ -21,7 +40,9 @@ async function postJSON(url, body) {
 }
 
 async function getJSON(url) {
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    headers: getAuthHeaders()
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `Request failed (${res.status})`);
@@ -34,7 +55,12 @@ async function getJSON(url) {
 export const api = {
   // ── Auth ─────────────────────────────────────────────────────────────────────
   async login(username, password) {
-    return postJSON(`${API_BASE_URL}/auth/login`, { username, password });
+    // Encrypt payload to prevent plain text credentials showing in DevTools Network tab
+    const payload = encryptTransportPayload({ username, password });
+    return postJSON(`${API_BASE_URL}/auth/login`, {
+      _encrypted: true,
+      payload
+    });
   },
 
   // ── Stats ────────────────────────────────────────────────────────────────────

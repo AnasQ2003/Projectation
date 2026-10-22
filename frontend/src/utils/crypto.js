@@ -2,33 +2,38 @@
  * crypto.js — Client-side Encryption & Safe Logging Utility
  *
  * Protects sensitive application data from being exposed in browser devtools,
- * console logs, and local persistence.
+ * network request payloads, console logs, and local persistence.
  */
 
-// Secret key for obfuscation / encryption in frontend storage
-const CLIENT_SECRET = 'Projectation-Client-Key-2026-X9@Dagger';
+// Shared transport encryption secret matching backend
+const TRANSPORT_SECRET = 'Projectation-Secure-Key-2026-X9@Dagger';
+const CLIENT_SECRET = TRANSPORT_SECRET;
 
 /**
- * Simple reversible XOR-Base64 cipher for client-side storage obfuscation
+ * Encrypts payload for client-to-server network transmission
+ * Obscures sensitive fields (like passwords) from DevTools Network Inspection
  */
-export function encryptClientData(text) {
-  if (!text) return text;
-  const str = typeof text === 'object' ? JSON.stringify(text) : String(text);
+export function encryptTransportPayload(data) {
+  if (!data) return data;
+  const str = typeof data === 'object' ? JSON.stringify(data) : String(data);
   let result = '';
   for (let i = 0; i < str.length; i++) {
-    const charCode = str.charCodeAt(i) ^ CLIENT_SECRET.charCodeAt(i % CLIENT_SECRET.length);
+    const charCode = str.charCodeAt(i) ^ TRANSPORT_SECRET.charCodeAt(i % TRANSPORT_SECRET.length);
     result += String.fromCharCode(charCode);
   }
   return btoa(encodeURIComponent(result));
 }
 
-export function decryptClientData(encoded) {
+/**
+ * Decrypts transport payload received from server
+ */
+export function decryptTransportPayload(encoded) {
   if (!encoded) return encoded;
   try {
     const decoded = decodeURIComponent(atob(encoded));
     let result = '';
     for (let i = 0; i < decoded.length; i++) {
-      const charCode = decoded.charCodeAt(i) ^ CLIENT_SECRET.charCodeAt(i % CLIENT_SECRET.length);
+      const charCode = decoded.charCodeAt(i) ^ TRANSPORT_SECRET.charCodeAt(i % TRANSPORT_SECRET.length);
       result += String.fromCharCode(charCode);
     }
     try {
@@ -42,9 +47,20 @@ export function decryptClientData(encoded) {
 }
 
 /**
+ * Simple reversible XOR-Base64 cipher for client-side storage obfuscation
+ */
+export function encryptClientData(text) {
+  return encryptTransportPayload(text);
+}
+
+export function decryptClientData(encoded) {
+  return decryptTransportPayload(encoded);
+}
+
+/**
  * Redacts sensitive credentials from being printed to browser console
  */
-const SENSITIVE_KEYS = ['password', 'token', 'authorization', 'secret', 'key'];
+const SENSITIVE_KEYS = ['password', 'token', 'authorization', 'secret', 'key', 'payload', '_encrypted'];
 
 export function maskSensitive(data) {
   if (!data) return data;

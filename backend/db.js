@@ -4,9 +4,9 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const dbConfig = {
-  user: process.env.DB_USER || 'nodeuser',
-  password: process.env.DB_PASSWORD || 'node1234',
-  server: process.env.DB_HOST || 'AnasHP-02',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_HOST,
   database: process.env.DB_NAME || 'ProjectationDB',
   port: parseInt(process.env.DB_PORT || '1433'),
   options: {
@@ -20,6 +20,13 @@ const dbConfig = {
     idleTimeoutMillis: 30000
   }
 };
+
+// Fail fast if critical env vars are missing
+if (!dbConfig.user || !dbConfig.password || !dbConfig.server) {
+  throw new Error(
+    'FATAL: DB_USER, DB_PASSWORD, and DB_HOST must be set in .env. Refusing to start.'
+  );
+}
 
 let pool = null;
 
