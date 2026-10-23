@@ -138,7 +138,17 @@ export default function MemberDetailModal({
 
   return createPortal(
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '580px' }}>
+      <div
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '580px',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '88vh',
+          overflow: 'hidden'
+        }}
+      >
         {/* Header Profile Banner */}
         <div style={{
           padding: '1.4rem 1.6rem',
@@ -146,7 +156,8 @@ export default function MemberDetailModal({
           backgroundColor: 'var(--bg-subtle)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          flexShrink: 0
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{
@@ -208,7 +219,8 @@ export default function MemberDetailModal({
           display: 'flex',
           borderBottom: '1px solid var(--border-subtle)',
           backgroundColor: 'var(--bg-card)',
-          padding: '0 1rem'
+          padding: '0 1rem',
+          flexShrink: 0
         }}>
           <button
             onClick={() => { setActiveTab('info'); setError(''); setSuccessMsg(''); }}
@@ -277,8 +289,8 @@ export default function MemberDetailModal({
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div style={{ padding: '1.5rem', maxHeight: '520px', overflowY: 'auto' }}>
+        {/* Modal Body (Smooth Single Scrollable) */}
+        <div style={{ padding: '1.4rem 1.6rem', flex: 1, overflowY: 'auto', overscrollBehavior: 'contain' }}>
           {error && (
             <div style={{
               background: 'rgba(244, 63, 94, 0.12)',
@@ -518,113 +530,190 @@ export default function MemberDetailModal({
           {/* TAB 2: EDIT MEMBER DETAILS (ADMIN) */}
           {activeTab === 'edit' && (
             <form onSubmit={handleEditSubmit}>
-              <div style={{ marginBottom: '1.1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  required
-                />
+              {/* Card 1: Identity & Contact */}
+              <div style={{
+                padding: '1.1rem 1.25rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.85rem' }}>
+                  <Briefcase size={15} color="var(--accent-primary)" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Identity & Contact
+                  </span>
+                </div>
+
+                <div style={{ marginBottom: '0.9rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="e.g. Ahmed (must be distinct)"
+                    required
+                  />
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.2rem', display: 'block' }}>
+                    Names cannot be exact same across members.
+                  </span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    placeholder="e.g. ahmed@softwarehouse.dev"
+                    required
+                  />
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.2rem', display: 'block' }}>
+                    Emails cannot be exact same across members.
+                  </span>
+                </div>
               </div>
 
-              <div style={{ marginBottom: '1.1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  className="form-input"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  required
-                />
-              </div>
+              {/* Card 2: Role & Designation */}
+              <div style={{
+                padding: '1.1rem 1.25rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.85rem' }}>
+                  <UserCheck size={15} color="#0891b2" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Role & Position
+                  </span>
+                </div>
 
-              <div style={{ marginBottom: '1.1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-                  Professional Role / Position *
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={editRole}
-                  onChange={(e) => setEditRole(e.target.value)}
-                  placeholder="e.g. Full Stack Developer, Tech Lead..."
-                  required
-                />
-                
+                <div style={{ marginBottom: '0.85rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+                    Professional Role / Title *
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value)}
+                    placeholder="e.g. Full Stack Developer, Tech Lead..."
+                    required
+                  />
+                </div>
+
                 {/* Preset Role Suggestions */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.45rem' }}>
-                  {PRESET_ROLES.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setEditRole(r)}
-                      style={{
-                        fontSize: '0.7rem',
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-subtle)',
-                        backgroundColor: editRole === r ? 'var(--accent-primary-light)' : 'var(--bg-subtle)',
-                        color: editRole === r ? 'var(--accent-primary)' : 'var(--text-muted)',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {r}
-                    </button>
-                  ))}
+                <div>
+                  <span style={{ display: 'block', fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 600, marginBottom: '0.4rem' }}>
+                    Quick Select Role Preset:
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                    {PRESET_ROLES.map((r) => {
+                      const isSelected = editRole === r;
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setEditRole(r)}
+                          style={{
+                            fontSize: '0.725rem',
+                            padding: '0.25rem 0.6rem',
+                            borderRadius: '7px',
+                            border: isSelected ? '1px solid var(--accent-primary-border)' : '1px solid var(--border-subtle)',
+                            backgroundColor: isSelected ? 'var(--accent-primary-light)' : '#ffffff',
+                            color: isSelected ? 'var(--accent-primary)' : 'var(--text-muted)',
+                            fontWeight: isSelected ? 700 : 500,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {r}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              {/* Assigned Project */}
-              <div style={{ marginBottom: '1.1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-                  Assigned Project Workspace
-                </label>
-                <select
-                  className="form-input"
-                  value={editProjectId}
-                  onChange={(e) => setEditProjectId(e.target.value)}
-                >
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id.toString()}>
-                      [{p.code}] {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Card 3: Project Workspace & Theme */}
+              <div style={{
+                padding: '1.1rem 1.25rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '1.25rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.85rem' }}>
+                  <FolderKanban size={15} color="#16a34a" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Workspace & Visual Avatar
+                  </span>
+                </div>
 
-              {/* Avatar Color Picker */}
-              <div style={{ marginBottom: '1.4rem' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-                  Avatar Color
-                </label>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  {AVATAR_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setEditColor(c)}
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '8px',
-                        backgroundColor: c,
-                        border: editColor === c ? '2px solid #ffffff' : 'none',
-                        outline: editColor === c ? `2px solid ${c}` : 'none',
-                        cursor: 'pointer'
-                      }}
-                    />
-                  ))}
+                {/* Assigned Project */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+                    Assigned Project Workspace
+                  </label>
+                  <select
+                    className="form-input"
+                    value={editProjectId}
+                    onChange={(e) => setEditProjectId(e.target.value)}
+                  >
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id.toString()}>
+                        [{p.code}] {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Avatar Color Picker */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+                    Avatar Color
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {AVATAR_COLORS.map((c) => {
+                      const isSelected = editColor === c;
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setEditColor(c)}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '9px',
+                            backgroundColor: c,
+                            border: isSelected ? '2px solid #ffffff' : '2px solid transparent',
+                            outline: isSelected ? `2px solid ${c}` : '1px solid rgba(0,0,0,0.1)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#ffffff',
+                            transition: 'transform 0.15s ease'
+                          }}
+                          title={`Select ${c}`}
+                        >
+                          {isSelected && <Check size={16} strokeWidth={3} />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
                 <button
                   type="button"
                   onClick={() => setActiveTab('info')}

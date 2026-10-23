@@ -8,12 +8,39 @@ const { executeQuery, connectDB, sql } = require('../db');
 /**
  * Find user by username
  */
-async function findUserByUsername(username) {
-  const cleanUser = username.trim().toLowerCase();
-  const result = await executeQuery(
-    `SELECT * FROM Users WHERE LOWER(username) = @u OR (LOWER(username) = 'anas' AND @u = 'admin') OR (LOWER(username) = 'admin' AND @u = 'anas')`,
-    { u: cleanUser }
-  );
+async function findUserByUsername(username, excludeId = null) {
+  const cleanUser = (username || '').trim().toLowerCase();
+  if (!cleanUser) return null;
+  const query = excludeId
+    ? `SELECT * FROM Users WHERE LOWER(LTRIM(RTRIM(username))) = @u AND id != @excludeId`
+    : `SELECT * FROM Users WHERE LOWER(LTRIM(RTRIM(username))) = @u`;
+  const result = await executeQuery(query, { u: cleanUser, excludeId });
+  return result.recordset[0] || null;
+}
+
+/**
+ * Find user by exact name (case-insensitive)
+ */
+async function findUserByName(name, excludeId = null) {
+  const cleanName = (name || '').trim().toLowerCase();
+  if (!cleanName) return null;
+  const query = excludeId 
+    ? `SELECT * FROM Users WHERE LOWER(LTRIM(RTRIM(name))) = @n AND id != @excludeId`
+    : `SELECT * FROM Users WHERE LOWER(LTRIM(RTRIM(name))) = @n`;
+  const result = await executeQuery(query, { n: cleanName, excludeId });
+  return result.recordset[0] || null;
+}
+
+/**
+ * Find user by exact email (case-insensitive)
+ */
+async function findUserByEmail(email, excludeId = null) {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail) return null;
+  const query = excludeId
+    ? `SELECT * FROM Users WHERE LOWER(LTRIM(RTRIM(email))) = @e AND id != @excludeId`
+    : `SELECT * FROM Users WHERE LOWER(LTRIM(RTRIM(email))) = @e`;
+  const result = await executeQuery(query, { e: cleanEmail, excludeId });
   return result.recordset[0] || null;
 }
 
@@ -195,6 +222,8 @@ async function getUserAssignedProjects(userName, userEmail, userUsername = '') {
 
 module.exports = {
   findUserByUsername,
+  findUserByName,
+  findUserByEmail,
   findUserById,
   getAllUsers,
   createUser,

@@ -21,12 +21,18 @@ export default function Sidebar({
   user,
   projectCount = 0
 }) {
+  const isAdmin = user?.role === 'Admin' || (user?.role && user.role.includes('Admin'));
+
   const menuItems = [
     { id: 'projects', label: 'Projects & Hub', icon: FolderKanban, badge: projectCount },
     { id: 'tasks', label: 'All Tasks', icon: CheckSquare },
     { id: 'team', label: 'Team Members', icon: Users },
     { id: 'timeline', label: 'Roadmap & Deadlines', icon: Clock }
   ];
+
+  if (isAdmin) {
+    menuItems.push({ id: 'users', label: 'User Management', icon: ShieldCheck });
+  }
 
   return (
     <aside
@@ -212,7 +218,7 @@ export default function Sidebar({
               fontWeight: 700,
               fontSize: '0.825rem'
             }}>
-              AN
+              {user?.name ? user.name.slice(0, 2).toUpperCase() : 'AD'}
             </div>
             {/* Active green status */}
             <span style={{

@@ -100,13 +100,13 @@ async function profile(req, res) {
   }
 
   try {
-    const decoded = token ? verifyToken(token) : { username: 'anas', name: 'Anas', role: 'Lead Administrator' };
+    const decoded = token ? verifyToken(token) : { username: 'admin', name: 'Admin', role: 'Admin' };
     return res.json({
       user: {
-        id: decoded.id || 1,
-        username: decoded.username || 'anas',
-        name: decoded.name || 'Anas',
-        role: decoded.role || 'Lead Administrator'
+        id: decoded.id || 2,
+        username: decoded.username || 'admin',
+        name: decoded.name || 'Admin',
+        role: decoded.role || 'Admin'
       },
       permissions: [
         'manage_projects',

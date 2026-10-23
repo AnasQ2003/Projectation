@@ -95,7 +95,7 @@ async function insertProject({ name, code, description, category, priority, stat
     {
       pid: newProjectId,
       action: `Project created with deadline ${deadline}`,
-      user: 'Anas (Admin)'
+      user: 'Admin'
     }
   );
 
@@ -138,7 +138,7 @@ async function modifyProject(projectId, updateData) {
   });
 
   await executeQuery(
-    `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, 'Project details updated', 'Anas (Admin)')`,
+    `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, 'Project details updated', 'Admin')`,
     { pid: projectId }
   );
 }

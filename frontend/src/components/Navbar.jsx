@@ -84,17 +84,6 @@ export default function Navbar({
           </button>
         )}
 
-        {onOpenUserManager && (
-          <button 
-            onClick={onOpenUserManager}
-            className="btn-secondary"
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-            title="Manage Registered Users (Admin Only)"
-          >
-            <Users size={15} />
-            <span className="navbar-btn-text">Users</span>
-          </button>
-        )}
 
 
         {/* Logout Button */}

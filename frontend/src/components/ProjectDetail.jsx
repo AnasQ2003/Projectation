@@ -1055,7 +1055,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                       {log.action}
                     </div>
                     <div style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'flex', gap: '0.45rem' }}>
-                      <span>By <strong>{log.user.includes('Alex') ? 'Anas (Admin)' : log.user}</strong></span>
+                      <span>By <strong>{log.user.includes('Alex') || log.user.includes('Anas') ? 'Admin' : log.user}</strong></span>
                       <span>&bull;</span>
                       <span>{formatDate(log.created_at)}</span>
                     </div>

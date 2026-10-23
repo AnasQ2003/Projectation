@@ -124,7 +124,11 @@ export const api = {
 
   // ── 4. Projects ─────────────────────────────────────────────────────────────
   async getProjects() {
-    return postJSON(`${API_BASE_URL}/projects/list`, {});
+    const data = await postJSON(`${API_BASE_URL}/projects/list`, {});
+    if (Array.isArray(data)) {
+      console.log('%c📁 [API Projects Directory]%c All Project Names:', 'background: #16a34a; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;', 'color: #0f172a; font-weight: bold;', data.map(p => `[${p.code}] ${p.name}`));
+    }
+    return data;
   },
 
   async getProject(id) {
@@ -145,7 +149,11 @@ export const api = {
 
   // ── 5. Members ──────────────────────────────────────────────────────────────
   async getAllMembers() {
-    return postJSON(`${API_BASE_URL}/members/list`, {});
+    const data = await postJSON(`${API_BASE_URL}/members/list`, {});
+    if (Array.isArray(data)) {
+      console.log('%c👤 [API Members Directory]%c All Team Member Names:', 'background: #0891b2; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;', 'color: #0f172a; font-weight: bold;', data.map(m => `${m.name} (${m.role})`));
+    }
+    return data;
   },
 
   async addMember(projectId, memberData) {
@@ -166,7 +174,11 @@ export const api = {
 
   // ── 6. Tasks ─────────────────────────────────────────────────────────────────
   async getAllTasks() {
-    return postJSON(`${API_BASE_URL}/tasks/list`, {});
+    const data = await postJSON(`${API_BASE_URL}/tasks/list`, {});
+    if (Array.isArray(data)) {
+      console.log('%c✅ [API Tasks Directory]%c All Task Titles & Assignees:', 'background: #7c3aed; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;', 'color: #0f172a; font-weight: bold;', data.map(t => `"${t.title}" -> ${t.assignee || 'Unassigned'}`));
+    }
+    return data;
   },
 
   async addTask(projectId, taskData) {
@@ -210,7 +222,11 @@ export const api = {
 
   // ── 10. User Management & User Portal ───────────────────────────────────────
   async getUsers() {
-    return postJSON(`${API_BASE_URL}/users/list`, {});
+    const data = await postJSON(`${API_BASE_URL}/users/list`, {});
+    if (Array.isArray(data)) {
+      console.log('%c👥 [API Users Directory]%c All Registered User Names:', 'background: #2563eb; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;', 'color: #0f172a; font-weight: bold;', data.map(u => `${u.name} (@${u.username}) • ${u.role}`));
+    }
+    return data;
   },
 
   async createUser(userData) {
@@ -229,13 +245,28 @@ export const api = {
     return postJSON(`${API_BASE_URL}/users/my-projects`, { userName, userEmail, username });
   },
 
-  // ── 11. Full Workspace API Stream (Ensures >95% API Traffic in Network & Console) ─
+  // ── 11. Central Enterprise Names Directory API ──────────────────────────────
+  async getAllNames() {
+    const data = await postJSON(`${API_BASE_URL}/system/names`, {});
+    if (data && data.names) {
+      console.group('%c🌟 [ENTERPRISE DIRECTORY] All Names in System (DevTools Telemetry)', 'background: #059669; color: #ffffff; font-weight: 800; padding: 4px 10px; border-radius: 6px;');
+      console.log('%c👥 Registered Users (' + data.counts.users + '):', 'font-weight: 700; color: #2563eb;', data.names.users);
+      console.log('%c👤 Team Members (' + data.counts.members + '):', 'font-weight: 700; color: #0891b2;', data.names.members);
+      console.log('%c📁 Projects (' + data.counts.projects + '):', 'font-weight: 700; color: #16a34a;', data.names.projects);
+      console.log('%c🎯 Assignees (' + data.counts.assignees + '):', 'font-weight: 700; color: #7c3aed;', data.names.assignees);
+      console.groupEnd();
+    }
+    return data;
+  },
+
+  // ── 12. Full Workspace API Stream (Ensures >95% API Traffic in Network & Console) ─
   async syncWorkspaceStream(isAdmin = true, currentUser = {}) {
     const tasks = [
       this.ping(),
       this.getHealth(),
       this.getProfile(),
-      this.getNotifications()
+      this.getNotifications(),
+      this.getAllNames()
     ];
 
     if (isAdmin) {
@@ -246,7 +277,8 @@ export const api = {
         this.getAllMembers(),
         this.getAllTasks(),
         this.getCategories(),
-        this.getActivity()
+        this.getActivity(),
+        this.getUsers()
       );
     } else {
       tasks.push(
@@ -258,3 +290,9 @@ export const api = {
     return Promise.allSettled(tasks);
   }
 };
+
+// Global Console Helper for Managers & Developers
+if (typeof window !== 'undefined') {
+  window.getAllNames = () => api.getAllNames();
+  window.showNames = () => api.getAllNames();
+}

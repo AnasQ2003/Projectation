@@ -47,7 +47,7 @@ async function insertTask({ project_id, title, description, status, priority, as
   });
 
   await executeQuery(
-    `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, @action, 'Anas (Admin)')`,
+    `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, @action, 'Admin')`,
     { pid, action: `Created task: "${title}"` }
   );
 

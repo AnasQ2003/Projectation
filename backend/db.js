@@ -187,18 +187,24 @@ async function initSchemaAndSeed() {
       END
     `);
 
-    // Ensure Admin Users exist (anas and admin) — passwords hashed with bcrypt
-    const adminCheck = await pool.request().query("SELECT * FROM Users WHERE username IN ('anas', 'admin')");
+    // Ensure only ONE primary Administrator account exists: username 'admin', name 'Admin'
+    await pool.request().query("DELETE FROM Users WHERE LOWER(username) = 'anas'");
+    const adminCheck = await pool.request().query("SELECT * FROM Users WHERE LOWER(username) = 'admin'");
     if (adminCheck.recordset.length === 0) {
       const hashedPassword = await bcrypt.hash('admin123', 12);
       await pool.request()
         .input('hash', sql.NVarChar, hashedPassword)
         .query(`
           INSERT INTO Users (username, password, name, role, email)
-          VALUES ('anas',  @hash, 'Anas', 'Admin', 'anas@softwarehouse.dev'),
-                 ('admin', @hash, 'Anas', 'Admin', 'admin@softwarehouse.dev');
+          VALUES ('admin', @hash, 'Admin', 'Admin', 'admin@softwarehouse.dev');
         `);
-      console.log('✅ Admin users initialized with encrypted credentials');
+      console.log('✅ Single Admin user initialized with encrypted credentials');
+    } else {
+      await pool.request().query(`
+        UPDATE Users 
+        SET name = 'Admin', role = 'Admin', email = 'admin@softwarehouse.dev' 
+        WHERE LOWER(username) = 'admin';
+      `);
     }
 
     // Ensure exactly the 3 registered users exist (Ahmed, Sarah Chen, David Kim)
@@ -380,7 +386,7 @@ async function seedInitialProjects() {
     await pool.request()
       .input('pid', sql.Int, newId)
       .input('action', sql.NVarChar, 'Project workspace initialized with core team & sprint backlog')
-      .input('user', sql.NVarChar, 'Anas (Admin)')
+      .input('user', sql.NVarChar, 'Admin')
       .query(`
         INSERT INTO ActivityLogs (project_id, action, [user])
         VALUES (@pid, @action, @user)

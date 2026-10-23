@@ -223,7 +223,7 @@ export default function LoginScreen({ onLoginSuccess }) {
                 style={{ paddingLeft: '2.45rem' }}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder={isAdminTab ? "Enter admin username (e.g. anas)" : "Enter user username (e.g. ahmed, sarah, david)"}
+                placeholder={isAdminTab ? "Enter admin username (e.g. admin)" : "Enter user username (e.g. ahmed, sarah, david)"}
                 autoComplete="off"
                 spellCheck="false"
                 required
@@ -331,7 +331,7 @@ export default function LoginScreen({ onLoginSuccess }) {
           border: '1px dashed var(--border-subtle)'
         }}>
           {isAdminTab ? (
-            <span>Admin Credentials: <strong>anas</strong> / <strong>admin123</strong></span>
+            <span>Admin Credentials: <strong>admin</strong> / <strong>admin123</strong></span>
           ) : (
             <span>Sample Users: <strong>ahmed</strong>, <strong>sarah</strong>, <strong>david</strong> / <strong>user123</strong></span>
           )}

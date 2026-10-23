@@ -10,7 +10,7 @@ import RoadmapView from './pages/RoadmapView';
 import ProjectDetail from './components/ProjectDetail';
 import NewProjectModal from './components/NewProjectModal';
 import UserPortalView from './components/UserPortalView';
-import UserManagerModal from './components/UserManagerModal';
+import UserManagementView from './pages/UserManagementView';
 import { api } from './services/api';
 import { encryptClientData, decryptClientData } from './utils/crypto';
 
@@ -48,7 +48,6 @@ export default function App() {
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
-  const [showUserManagerModal, setShowUserManagerModal] = useState(false);
   const [totalProjectsCount, setTotalProjectsCount] = useState(0);
 
   // ── Handlers defined BEFORE effects so they are available in closures ──
@@ -152,11 +151,10 @@ export default function App() {
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onOpenNewProject={() => setShowNewProjectModal(true)}
-          onOpenUserManager={() => setShowUserManagerModal(true)}
           onToggleSidebar={() => setSidebarMobileOpen(prev => !prev)}
         />
 
-        {/* View Router for all 4 sidebar options & Project Detail */}
+        {/* View Router for sidebar options & Project Detail */}
         <main style={{ flex: 1 }}>
           {selectedProjectId ? (
             <ProjectDetail
@@ -185,6 +183,10 @@ export default function App() {
               onSelectProject={(id) => setSelectedProjectId(id)}
               refreshTrigger={refreshCount}
             />
+          ) : activeTab === 'users' ? (
+            <UserManagementView
+              refreshTrigger={refreshCount}
+            />
           ) : (
             <Dashboard
               onSelectProject={(id) => setSelectedProjectId(id)}
@@ -210,16 +212,6 @@ export default function App() {
               setSelectedProjectId(null);
               setActiveTab('projects');
               setShowNewProjectModal(false);
-              triggerRefresh();
-            }}
-          />
-        )}
-
-        {/* Global User Management Modal for Admin */}
-        {showUserManagerModal && (
-          <UserManagerModal
-            onClose={() => {
-              setShowUserManagerModal(false);
               triggerRefresh();
             }}
           />

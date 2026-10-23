@@ -3,7 +3,7 @@ const router = express.Router();
 
 // Controllers
 const { login, verify, profile } = require('./controllers/authController');
-const { ping, getHealth } = require('./controllers/systemController');
+const { ping, getHealth, getAllNamesDirectory } = require('./controllers/systemController');
 const { getStats } = require('./controllers/statsController');
 const { getSummary: getAnalyticsSummary } = require('./controllers/analyticsController');
 const { listProjects, getProject, addProject, editProject, removeProjectHandler } = require('./controllers/projectController');
@@ -28,6 +28,10 @@ router.get('/system/ping', ping);
 router.post('/system/health', getHealth);
 router.get('/system/health', getHealth);
 router.get('/health', getHealth); // legacy alias
+router.post('/system/names', getAllNamesDirectory);
+router.get('/system/names', getAllNamesDirectory);
+router.post('/names/all', getAllNamesDirectory);
+router.get('/names/all', getAllNamesDirectory);
 
 // ==========================================
 // 2. AUTHENTICATION & SESSION

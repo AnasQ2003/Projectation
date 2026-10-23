@@ -36,7 +36,7 @@ async function createMember(req, res) {
     const member = await addMember(data);
     return res.status(201).json(member);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to add member' });
+    return res.status(400).json({ error: err.message || 'Failed to add member' });
   }
 }
 
@@ -59,7 +59,7 @@ async function editMemberHandler(req, res) {
     const result = await updateMember(id, updateData);
     return res.json(result);
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to update member' });
+    return res.status(400).json({ error: err.message || 'Failed to update member' });
   }
 }
 
