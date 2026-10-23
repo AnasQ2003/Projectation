@@ -1,7 +1,4 @@
-/**
- * Member Validators
- * Layer 1: Input validation — runs before service logic
- */
+
 
 function validateCreateMember({ project_id, name, email, role }) {
   const errors = [];

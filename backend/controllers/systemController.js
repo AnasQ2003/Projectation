@@ -1,9 +1,5 @@
 const { connectDB } = require('../db');
 
-/**
- * System Controller — High-speed status, ping, and health telemetry
- */
-
 async function ping(req, res) {
   return res.json({
     pong: true,

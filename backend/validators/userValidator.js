@@ -1,7 +1,4 @@
-/**
- * User Validator (Layer 1)
- * Validates request data before it reaches the controller and service
- */
+
 
 function validateCreateUser(data) {
   const errors = [];

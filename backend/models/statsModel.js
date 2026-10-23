@@ -1,8 +1,5 @@
 const { executeQuery } = require('../db');
 
-/**
- * Fetch high-level KPI counts for the dashboard
- */
 async function fetchGlobalStats() {
   const query = `
     SELECT 

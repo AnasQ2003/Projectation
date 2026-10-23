@@ -1,7 +1,4 @@
-/**
- * Task Validators
- * Layer 1: Input validation — runs before service logic
- */
+
 
 function validateCreateTask({ project_id, title }) {
   const errors = [];

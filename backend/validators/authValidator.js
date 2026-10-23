@@ -1,7 +1,3 @@
-/**
- * Auth Validators
- * Layer 1: Input validation — runs before service logic
- */
 
 function validateLogin({ username, password }) {
   const errors = [];

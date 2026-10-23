@@ -1,8 +1,5 @@
 const { executeQuery } = require('../db');
 
-/**
- * Fetch all projects along with member & task count aggregates
- */
 async function fetchAllProjects() {
   const query = `
     SELECT 

@@ -1,9 +1,5 @@
 const { connectDB } = require('../db');
 
-/**
- * Category Controller — Dynamic project category repository
- */
-
 const DEFAULT_CATEGORIES = [
   'Software Development',
   'Fintech Mobile',

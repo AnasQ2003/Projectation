@@ -1,9 +1,5 @@
 const { connectDB } = require('../db');
 
-/**
- * Analytics Controller — Advanced project breakdown & velocity metrics
- */
-
 async function getSummary(req, res) {
   try {
     const pool = await connectDB();

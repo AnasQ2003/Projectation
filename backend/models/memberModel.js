@@ -6,9 +6,6 @@ function randomColor() {
   return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
 }
 
-/**
- * Fetch all members with task completion metrics
- */
 async function fetchAllMembers() {
   const query = `
     SELECT 

@@ -1,9 +1,5 @@
 const { connectDB } = require('../db');
 
-/**
- * Notification Controller — Real-time project alerts & system events
- */
-
 async function listNotifications(req, res) {
   try {
     const pool = await connectDB();

@@ -1,7 +1,4 @@
-/**
- * Project Validators
- * Layer 1: Input validation — runs before service logic
- */
+
 
 function validateCreateProject({ name, deadline }) {
   const errors = [];

@@ -1,9 +1,5 @@
 const { connectDB, sql } = require('../db');
 
-/**
- * Activity Controller — Enterprise Audit & Action Stream
- */
-
 async function listActivity(req, res) {
   try {
     const pool = await connectDB();
