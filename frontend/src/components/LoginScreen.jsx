@@ -331,9 +331,9 @@ export default function LoginScreen({ onLoginSuccess }) {
           border: '1px dashed var(--border-subtle)'
         }}>
           {isAdminTab ? (
-            <span>Admin Credentials: <strong>admin</strong> / <strong>admin123</strong></span>
+            <span><strong>Admin</strong> credentials need to be inserted only</span>
           ) : (
-            <span>Sample Users: <strong>ahmed</strong>, <strong>sarah</strong>, <strong>david</strong> / <strong>user123</strong></span>
+            <span><strong>Team Member</strong> credentials need to be inserted only</span>
           )}
         </div>
       </div>
