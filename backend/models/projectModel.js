@@ -19,12 +19,13 @@ async function fetchAllProjects() {
 
   const result = await executeQuery(query);
   return result.recordset.map(p => {
-    let calcProgress = p.progress;
+    let calcProgress = p.progress || 0;
     if (p.total_tasks > 0) {
       calcProgress = Math.round(((p.done_tasks || 0) / p.total_tasks) * 100);
     }
     return {
       ...p,
+      progress: calcProgress,
       calculated_progress: calcProgress
     };
   });
@@ -44,10 +45,19 @@ async function fetchProjectById(projectId) {
     executeQuery('SELECT TOP 15 * FROM ActivityLogs WHERE project_id = @id ORDER BY id DESC', { id: projectId })
   ]);
 
+  const tasks = tasksRes.recordset || [];
+  let calculatedProgress = project.progress || 0;
+  if (tasks.length > 0) {
+    const doneTasks = tasks.filter(t => (t.status || '').toLowerCase() === 'done').length;
+    calculatedProgress = Math.round((doneTasks / tasks.length) * 100);
+  }
+
   return {
     ...project,
+    progress: calculatedProgress,
+    calculated_progress: calculatedProgress,
     members: membersRes.recordset || [],
-    tasks: tasksRes.recordset || [],
+    tasks,
     activity_logs: logsRes.recordset || []
   };
 }

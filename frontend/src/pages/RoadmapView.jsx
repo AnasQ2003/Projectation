@@ -13,7 +13,7 @@ import {
 import { api } from '../services/api';
 import { getDeadlineInfo, formatDate } from '../utils/dateUtils';
 
-export default function RoadmapView({ onSelectProject }) {
+export default function RoadmapView({ onSelectProject, refreshTrigger }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [urgencyFilter, setUrgencyFilter] = useState('ALL');
@@ -31,7 +31,7 @@ export default function RoadmapView({ onSelectProject }) {
       }
     };
     fetchProjects();
-  }, []);
+  }, [refreshTrigger]);
 
   const filteredProjects = projects.filter((p) => {
     const d = getDeadlineInfo(p.deadline);

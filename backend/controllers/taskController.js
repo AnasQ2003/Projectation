@@ -62,6 +62,26 @@ async function editTask(req, res) {
   }
 }
 
+// POST /api/tasks/status ({ id, status })
+async function updateTaskStatus(req, res) {
+  const { id, status } = req.body;
+  if (!id || !status) {
+    return res.status(400).json({ error: 'id and status are required' });
+  }
+
+  const validStatuses = ['todo', 'in_progress', 'review', 'done'];
+  if (!validStatuses.includes(status.toLowerCase())) {
+    return res.status(400).json({ error: 'Invalid status value. Must be todo, in_progress, review, or done.' });
+  }
+
+  try {
+    const result = await updateTask(id, { status: status.toLowerCase() });
+    return res.json({ success: true, updated: result });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update task status' });
+  }
+}
+
 // POST /api/tasks/delete  (replaces DELETE /api/tasks/:id)
 async function removeTaskHandler(req, res) {
   const id = req.body.id || req.params.id;
@@ -83,5 +103,6 @@ module.exports = {
   listTasks,
   addTask,
   editTask,
+  updateTaskStatus,
   removeTaskHandler
 };

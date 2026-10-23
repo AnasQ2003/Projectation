@@ -17,7 +17,7 @@ import { api } from '../services/api';
 import { getDeadlineInfo, formatDate } from '../utils/dateUtils';
 import TaskDetailModal from '../components/TaskDetailModal';
 
-export default function AllTasksView({ onSelectProject }) {
+export default function AllTasksView({ onSelectProject, refreshTrigger }) {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [members, setMembers] = useState([]);
@@ -65,7 +65,7 @@ export default function AllTasksView({ onSelectProject }) {
 
   useEffect(() => {
     fetchTasksData();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleStatusChange = async (taskId, newStatus) => {
     try {

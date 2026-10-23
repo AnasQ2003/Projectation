@@ -2,17 +2,34 @@ const express = require('express');
 const cors = require('cors');
 const { connectDB } = require('./db');
 const apiRoutes = require('./routes');
+const {
+  safeLoggerMiddleware,
+  decryptPayloadMiddleware,
+  encryptResponseMiddleware
+} = require('./utils/crypto');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const { safeLoggerMiddleware, decryptPayloadMiddleware } = require('./utils/crypto');
+// Security & Cleanliness
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
 
 // Middlewares
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: true,
+  credentials: true,
+  exposedHeaders: ['X-Encrypted-Transport', 'Content-Length', 'Content-Type']
+}));
+app.use(express.json({ limit: '10mb' }));
 app.use(safeLoggerMiddleware);
 app.use(decryptPayloadMiddleware);
+app.use(encryptResponseMiddleware);
 
 // Ensure SQL Server is connected on boot
 connectDB().catch(err => {
@@ -26,7 +43,7 @@ app.use('/api', apiRoutes);
 app.get('/', (req, res) => {
   res.json({
     message: 'Projectation API Server running',
-    version: '1.0.0',
+    version: '2.0.0',
     endpoints: '/api/*'
   });
 });

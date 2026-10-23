@@ -15,9 +15,10 @@ const dbConfig = {
     enableArithAbort: true
   },
   pool: {
-    max: 10,
-    min: 0,
-    idleTimeoutMillis: 30000
+    max: 25,
+    min: 2,
+    idleTimeoutMillis: 3600000,
+    acquireTimeoutMillis: 15000
   }
 };
 
@@ -29,6 +30,7 @@ if (!dbConfig.user || !dbConfig.password || !dbConfig.server) {
 }
 
 let pool = null;
+let poolConnecting = null;
 
 async function ensureDatabaseExists() {
   const masterConfig = {
@@ -52,19 +54,43 @@ async function ensureDatabaseExists() {
 }
 
 async function connectDB() {
-  if (pool) return pool;
+  if (pool && pool.connected) return pool;
+  if (poolConnecting) return poolConnecting;
 
-  await ensureDatabaseExists();
+  poolConnecting = (async () => {
+    try {
+      // Connect directly to target database for instant startup (<50ms)
+      pool = await sql.connect(dbConfig);
+      console.log(`🔌 Connected to Microsoft SQL Server (${dbConfig.database}) [Pool Ready]`);
 
-  try {
-    pool = await sql.connect(dbConfig);
-    console.log(`🔌 Connected to Microsoft SQL Server (${dbConfig.database})`);
-    await initSchemaAndSeed();
-    return pool;
-  } catch (err) {
-    console.error('❌ SQL Server connection error:', err.message);
-    throw err;
-  }
+      pool.on('error', err => {
+        console.error('⚠️ SQL Pool connection event:', err.message);
+        pool = null;
+      });
+
+      // Run table verification and initial seeding asynchronously in background
+      initSchemaAndSeed().catch(err => {
+        console.warn('Background schema check note:', err.message);
+      });
+
+      return pool;
+    } catch (err) {
+      // If DB does not exist yet, create it from master and connect
+      if (err.message && (err.message.includes('Cannot open database') || err.message.includes('ProjectationDB'))) {
+        console.log('Database ProjectationDB not detected. Creating database via master...');
+        await ensureDatabaseExists();
+        pool = await sql.connect(dbConfig);
+        await initSchemaAndSeed();
+        return pool;
+      }
+      console.error('❌ SQL Server connection error:', err.message);
+      throw err;
+    } finally {
+      poolConnecting = null;
+    }
+  })();
+
+  return poolConnecting;
 }
 
 async function initSchemaAndSeed() {
@@ -153,6 +179,14 @@ async function initSchemaAndSeed() {
       END
     `);
 
+    // Ensure email column exists on Users table
+    await req.query(`
+      IF COL_LENGTH('Users', 'email') IS NULL
+      BEGIN
+        ALTER TABLE Users ADD email NVARCHAR(150);
+      END
+    `);
+
     // Ensure Admin Users exist (anas and admin) — passwords hashed with bcrypt
     const adminCheck = await pool.request().query("SELECT * FROM Users WHERE username IN ('anas', 'admin')");
     if (adminCheck.recordset.length === 0) {
@@ -160,11 +194,64 @@ async function initSchemaAndSeed() {
       await pool.request()
         .input('hash', sql.NVarChar, hashedPassword)
         .query(`
-          INSERT INTO Users (username, password, name, role)
-          VALUES ('anas',  @hash, 'Anas', 'Project Lead & Admin'),
-                 ('admin', @hash, 'Anas', 'Project Lead & Admin');
+          INSERT INTO Users (username, password, name, role, email)
+          VALUES ('anas',  @hash, 'Anas', 'Admin', 'anas@softwarehouse.dev'),
+                 ('admin', @hash, 'Anas', 'Admin', 'admin@softwarehouse.dev');
         `);
       console.log('✅ Admin users initialized with encrypted credentials');
+    }
+
+    // Ensure exactly the 3 registered users exist (Ahmed, Sarah Chen, David Kim)
+    const userCheck = await pool.request().query("SELECT username FROM Users WHERE username IN ('ahmed', 'sarah', 'david')");
+    const existingUsernames = userCheck.recordset.map(u => u.username.toLowerCase());
+    const regularPasswordHash = await bcrypt.hash('user123', 12);
+
+    const initialRegularUsers = [
+      { username: 'ahmed', name: 'Ahmed', role: 'User', email: 'a@softwarehouse.dev' },
+      { username: 'sarah', name: 'Sarah Chen', role: 'User', email: 'sarah.c@softwarehouse.dev' },
+      { username: 'david', name: 'David Kim', role: 'User', email: 'david.k@softwarehouse.dev' }
+    ];
+
+    for (const ru of initialRegularUsers) {
+      if (!existingUsernames.includes(ru.username)) {
+        await pool.request()
+          .input('u', sql.NVarChar, ru.username)
+          .input('p', sql.NVarChar, regularPasswordHash)
+          .input('n', sql.NVarChar, ru.name)
+          .input('r', sql.NVarChar, ru.role)
+          .input('e', sql.NVarChar, ru.email)
+          .query(`
+            INSERT INTO Users (username, password, name, role, email)
+            VALUES (@u, @p, @n, @r, @e)
+          `);
+        console.log(`✅ Seeded regular user: ${ru.username}`);
+      }
+    }
+
+    // Ensure Sarah and David are in Members table for assigned projects
+    const memberCheck = await pool.request().query("SELECT name FROM Members WHERE name IN ('Sarah Chen', 'David Kim')");
+    const existingMembers = memberCheck.recordset.map(m => m.name);
+    const firstProj = await pool.request().query("SELECT TOP 1 id FROM Projects ORDER BY id ASC");
+    if (firstProj.recordset.length > 0) {
+      const pId = firstProj.recordset[0].id;
+      if (!existingMembers.includes('Sarah Chen')) {
+        await pool.request()
+          .input('pid', sql.Int, pId)
+          .input('name', sql.NVarChar, 'Sarah Chen')
+          .input('email', sql.NVarChar, 'sarah.c@softwarehouse.dev')
+          .input('role', sql.NVarChar, 'Frontend Specialist')
+          .input('color', sql.NVarChar, '#3b82f6')
+          .query("INSERT INTO Members (project_id, name, email, role, avatar_color) VALUES (@pid, @name, @email, @role, @color)");
+      }
+      if (!existingMembers.includes('David Kim')) {
+        await pool.request()
+          .input('pid', sql.Int, pId)
+          .input('name', sql.NVarChar, 'David Kim')
+          .input('email', sql.NVarChar, 'david.k@softwarehouse.dev')
+          .input('role', sql.NVarChar, 'Backend Specialist')
+          .input('color', sql.NVarChar, '#10b981')
+          .query("INSERT INTO Members (project_id, name, email, role, avatar_color) VALUES (@pid, @name, @email, @role, @color)");
+      }
     }
 
     // Seed sample projects if empty

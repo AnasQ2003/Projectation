@@ -9,14 +9,35 @@ import TeamView from './pages/TeamView';
 import RoadmapView from './pages/RoadmapView';
 import ProjectDetail from './components/ProjectDetail';
 import NewProjectModal from './components/NewProjectModal';
+import UserPortalView from './components/UserPortalView';
+import UserManagerModal from './components/UserManagerModal';
 import { api } from './services/api';
+import { encryptClientData, decryptClientData } from './utils/crypto';
 
 export default function App() {
-  // Splash Screen State
-  const [showSplash, setShowSplash] = useState(true);
+  // Splash Screen State — Only show splash on initial cold startup without existing login session
+  const [showSplash, setShowSplash] = useState(() => {
+    return !localStorage.getItem('projectation_token');
+  });
 
-  // Authentication State — Starts as null so user ALWAYS sees Login Screen after loading screen
-  const [user, setUser] = useState(null);
+  // Authentication State — Synchronously restore from encrypted localStorage so reload/DevTools NEVER kicks user to login
+  const [user, setUser] = useState(() => {
+    try {
+      const rawUser = localStorage.getItem('projectation_user');
+      const rawToken = localStorage.getItem('projectation_token');
+      if (rawUser && rawToken) {
+        const decrypted = decryptClientData(rawUser);
+        return typeof decrypted === 'object' ? decrypted : JSON.parse(decrypted);
+      }
+    } catch {
+      // Fallback
+    }
+    return null;
+  });
+
+  // Live Data Refresh Counter (forces components to re-fetch freshest SQL Server data on changes)
+  const [refreshCount, setRefreshCount] = useState(0);
+  const triggerRefresh = () => setRefreshCount(prev => prev + 1);
 
   // Drawer / Sidebar State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -27,12 +48,50 @@ export default function App() {
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [showUserManagerModal, setShowUserManagerModal] = useState(false);
   const [totalProjectsCount, setTotalProjectsCount] = useState(0);
+
+  // ── Handlers defined BEFORE effects so they are available in closures ──
+  const handleLogout = () => {
+    localStorage.removeItem('projectation_token');
+    localStorage.removeItem('projectation_user');
+    setUser(null);
+    setSelectedProjectId(null);
+    setShowSplash(false);
+  };
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    setShowSplash(false);
+    triggerRefresh();
+    const isAdmin = userData.role === 'Admin' || (userData.role && userData.role.includes('Admin'));
+    api.syncWorkspaceStream(isAdmin, userData).catch(() => {});
+  };
 
   // Theme: strictly white/light only
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light');
     localStorage.setItem('projectation_theme', 'light');
+
+    // Background session verification — if token valid, refresh stream
+    const storedToken = localStorage.getItem('projectation_token');
+    if (storedToken) {
+      api.verifyToken()
+        .then((res) => {
+          if (res && res.valid && res.user) {
+            setUser(res.user);
+            localStorage.setItem('projectation_user', encryptClientData(JSON.stringify(res.user)));
+            const isAdmin = res.user.role === 'Admin' || (res.user.role && res.user.role.includes('Admin'));
+            api.syncWorkspaceStream(isAdmin, res.user).catch(() => {});
+          }
+        })
+        .catch(() => {
+          // Retain existing session on transient network errors
+        });
+    } else {
+      // Fast lightweight startup handshake
+      api.ping().catch(() => {});
+    }
   }, []);
 
   // Close mobile sidebar on resize to desktop
@@ -44,18 +103,6 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleLoginSuccess = (userData) => {
-    setUser(userData);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('projectation_token');
-    localStorage.removeItem('projectation_user');
-    setUser(null);
-    setSelectedProjectId(null);
-    setShowSplash(true);
-  };
-
   // If initial splash is active, show the splash loading screen
   if (showSplash) {
     return <SplashLogo onFinish={() => setShowSplash(false)} />;
@@ -64,6 +111,12 @@ export default function App() {
   // If user is not logged in, show the login portal
   if (!user) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // If user is a regular Team Member, show the dedicated User Portal View
+  const isAdmin = user.role === 'Admin' || (user.role && user.role.includes('Admin'));
+  if (!isAdmin) {
+    return <UserPortalView user={user} onLogout={handleLogout} />;
   }
 
   return (
@@ -99,6 +152,7 @@ export default function App() {
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onOpenNewProject={() => setShowNewProjectModal(true)}
+          onOpenUserManager={() => setShowUserManagerModal(true)}
           onToggleSidebar={() => setSidebarMobileOpen(prev => !prev)}
         />
 
@@ -107,20 +161,29 @@ export default function App() {
           {selectedProjectId ? (
             <ProjectDetail
               projectId={selectedProjectId}
-              onBack={() => setSelectedProjectId(null)}
-              onProjectDeleted={() => setSelectedProjectId(null)}
+              onBack={() => {
+                setSelectedProjectId(null);
+                triggerRefresh();
+              }}
+              onProjectDeleted={() => {
+                setSelectedProjectId(null);
+                triggerRefresh();
+              }}
             />
           ) : activeTab === 'tasks' ? (
             <AllTasksView
               onSelectProject={(id) => setSelectedProjectId(id)}
+              refreshTrigger={refreshCount}
             />
           ) : activeTab === 'team' ? (
             <TeamView
               onSelectProject={(id) => setSelectedProjectId(id)}
+              refreshTrigger={refreshCount}
             />
           ) : activeTab === 'timeline' ? (
             <RoadmapView
               onSelectProject={(id) => setSelectedProjectId(id)}
+              refreshTrigger={refreshCount}
             />
           ) : (
             <Dashboard
@@ -134,6 +197,7 @@ export default function App() {
               showNewProjectModal={showNewProjectModal}
               setShowNewProjectModal={setShowNewProjectModal}
               onProjectsLoaded={(count) => setTotalProjectsCount(count)}
+              refreshTrigger={refreshCount}
             />
           )}
         </main>
@@ -146,6 +210,17 @@ export default function App() {
               setSelectedProjectId(null);
               setActiveTab('projects');
               setShowNewProjectModal(false);
+              triggerRefresh();
+            }}
+          />
+        )}
+
+        {/* Global User Management Modal for Admin */}
+        {showUserManagerModal && (
+          <UserManagerModal
+            onClose={() => {
+              setShowUserManagerModal(false);
+              triggerRefresh();
             }}
           />
         )}

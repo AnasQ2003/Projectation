@@ -25,7 +25,8 @@ export default function Dashboard({
   setSearchQuery,
   showNewProjectModal, 
   setShowNewProjectModal,
-  onProjectsLoaded
+  onProjectsLoaded,
+  refreshTrigger
 }) {
   const [projects, setProjects] = useState([]);
   const [stats, setStats] = useState(null);
@@ -57,7 +58,7 @@ export default function Dashboard({
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleDeleteProject = async (projectId) => {
     if (!window.confirm('Are you sure you want to delete this project?')) return;

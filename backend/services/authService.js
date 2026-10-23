@@ -58,10 +58,19 @@ async function loginUser(username, password) {
 }
 
 /**
- * Hash a plain-text password with bcrypt (cost factor 12)
+ * Hash a plain-text password with bcrypt (cost factor 10 for instant response)
  */
 async function hashPassword(plainText) {
-  return bcrypt.hash(plainText, 12);
+  return bcrypt.hash(plainText, 10);
 }
 
-module.exports = { loginUser, hashPassword };
+/**
+ * Verify a JWT token string
+ */
+function verifyToken(token) {
+  if (!token) throw new Error('Token is required');
+  return jwt.verify(token, JWT_SECRET);
+}
+
+module.exports = { loginUser, hashPassword, verifyToken };
+

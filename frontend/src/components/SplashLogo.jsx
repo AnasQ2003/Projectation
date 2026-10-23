@@ -11,12 +11,12 @@ export default function SplashLogo({ onFinish }) {
           clearInterval(timer);
           setTimeout(() => {
             onFinish();
-          }, 250);
+          }, 80);
           return 100;
         }
-        return prev + 5;
+        return prev + 6;
       });
-    }, 55); // Smooth ~1.2s animation
+    }, 18); // Crisp and smooth ~300ms loading splash
 
     return () => clearInterval(timer);
   }, [onFinish]);

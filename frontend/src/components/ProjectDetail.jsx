@@ -142,6 +142,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
       await api.updateProject(projectId, payload);
       setProject(prev => ({ ...prev, ...payload }));
       setShowEditModal(false);
+      await fetchProjectDetails();
     } catch (err) {
       alert('Error saving project settings: ' + err.message);
     } finally {

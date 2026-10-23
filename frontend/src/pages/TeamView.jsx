@@ -23,7 +23,7 @@ import {
 import { api } from '../services/api';
 import MemberDetailModal from '../components/MemberDetailModal';
 
-export default function TeamView({ onSelectProject }) {
+export default function TeamView({ onSelectProject, refreshTrigger }) {
   const [members, setMembers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,7 @@ export default function TeamView({ onSelectProject }) {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleDeleteMember = async (memberId, memberName) => {
     if (!window.confirm(`Are you sure you want to remove ${memberName}?`)) return;

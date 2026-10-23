@@ -3,7 +3,8 @@ import {
   Search, 
   LogOut, 
   Plus,
-  Menu
+  Menu,
+  Users
 } from 'lucide-react';
 
 export default function Navbar({ 
@@ -12,6 +13,7 @@ export default function Navbar({
   searchQuery, 
   setSearchQuery,
   onOpenNewProject,
+  onOpenUserManager,
   onToggleSidebar
 }) {
   return (
@@ -79,6 +81,18 @@ export default function Navbar({
           >
             <Plus size={15} />
             <span className="navbar-btn-text">New Project</span>
+          </button>
+        )}
+
+        {onOpenUserManager && (
+          <button 
+            onClick={onOpenUserManager}
+            className="btn-secondary"
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Manage Registered Users (Admin Only)"
+          >
+            <Users size={15} />
+            <span className="navbar-btn-text">Users</span>
           </button>
         )}
 

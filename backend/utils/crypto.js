@@ -50,7 +50,6 @@ function decrypt(cipherString) {
   if (!cipherString || typeof cipherString !== 'string') return cipherString;
   const parts = cipherString.split(':');
   if (parts.length !== 4) {
-    // Not in encrypted format, return as is
     return cipherString;
   }
 
@@ -74,40 +73,53 @@ function decrypt(cipherString) {
 }
 
 /**
- * Decrypts transport payload sent by frontend client
+ * Byte-safe XOR Transport Encryption matching frontend TextEncoder / Uint8Array
+ */
+function encryptTransportPayload(data) {
+  if (data === null || data === undefined) return data;
+  const str = typeof data === 'object' ? JSON.stringify(data) : String(data);
+  const buf = Buffer.from(str, 'utf8');
+  const keyBuf = Buffer.from(TRANSPORT_SECRET, 'utf8');
+  const out = Buffer.alloc(buf.length);
+  for (let i = 0; i < buf.length; i++) {
+    out[i] = buf[i] ^ keyBuf[i % keyBuf.length];
+  }
+  return out.toString('base64');
+}
+
+/**
+ * Byte-safe XOR Transport Decryption matching frontend TextDecoder / Uint8Array
  */
 function decryptTransportPayload(b64) {
   if (!b64 || typeof b64 !== 'string') return b64;
   try {
-    const decoded = decodeURIComponent(Buffer.from(b64, 'base64').toString('utf8'));
-    let res = '';
-    for (let i = 0; i < decoded.length; i++) {
-      res += String.fromCharCode(decoded.charCodeAt(i) ^ TRANSPORT_SECRET.charCodeAt(i % TRANSPORT_SECRET.length));
+    const buf = Buffer.from(b64, 'base64');
+    const keyBuf = Buffer.from(TRANSPORT_SECRET, 'utf8');
+    const out = Buffer.alloc(buf.length);
+    for (let i = 0; i < buf.length; i++) {
+      out[i] = buf[i] ^ keyBuf[i % keyBuf.length];
     }
-    return JSON.parse(res);
+    const decodedStr = out.toString('utf8');
+    try {
+      return JSON.parse(decodedStr);
+    } catch {
+      return decodedStr;
+    }
   } catch (err) {
     throw new Error('Failed to decrypt payload: ' + err.message);
   }
 }
 
 /**
- * Encrypts payload for client-server transport
- */
-function encryptTransportPayload(data) {
-  if (!data) return data;
-  const str = typeof data === 'object' ? JSON.stringify(data) : String(data);
-  let res = '';
-  for (let i = 0; i < str.length; i++) {
-    res += String.fromCharCode(str.charCodeAt(i) ^ TRANSPORT_SECRET.charCodeAt(i % TRANSPORT_SECRET.length));
-  }
-  return Buffer.from(encodeURIComponent(res), 'utf8').toString('base64');
-}
-
-/**
  * Express middleware that automatically unpacks encrypted request bodies
  */
 function decryptPayloadMiddleware(req, res, next) {
+  if (req.headers['x-encrypted-transport'] === '1') {
+    req.isEncryptedClient = true;
+  }
+
   if (req.body && (req.body._encrypted || req.body.encrypted) && req.body.payload) {
+    req.isEncryptedClient = true;
     try {
       req.body = decryptTransportPayload(req.body.payload);
     } catch (e) {
@@ -118,16 +130,49 @@ function decryptPayloadMiddleware(req, res, next) {
 }
 
 /**
+ * Express middleware that automatically wraps JSON responses in transport encryption
+ * whenever the client uses encrypted transport
+ */
+function encryptResponseMiddleware(req, res, next) {
+  const originalJson = res.json.bind(res);
+
+  res.json = function(data) {
+    const isEncrypted = req.isEncryptedClient ||
+                        req.headers['x-encrypted-transport'] === '1' ||
+                        (req.body && (req.body._encrypted || req.body.encrypted));
+
+    if (isEncrypted && data !== undefined && data !== null) {
+      if (typeof data === 'object' && data._encrypted) {
+        return originalJson(data);
+      }
+      res.setHeader('X-Encrypted-Transport', '1');
+      return originalJson({
+        _encrypted: true,
+        payload: encryptTransportPayload(data)
+      });
+    }
+    return originalJson(data);
+  };
+
+  next();
+}
+
+/**
  * Recursively masks sensitive fields in objects for safe logging
  */
-const SENSITIVE_KEYS = ['password', 'token', 'authorization', 'secret', 'key', 'credit_card', 'ssn', 'payload', '_encrypted'];
+const SENSITIVE_KEYS = [
+  'password', 'token', 'authorization', 'secret', 'key', 
+  'credit_card', 'ssn', 'payload', '_encrypted'
+];
 
-function maskSensitive(data) {
-  if (!data) return data;
+function maskSensitive(data, seen = new WeakSet(), depth = 0) {
+  if (!data || depth > 4) return data;
   if (typeof data !== 'object') return data;
+  if (seen.has(data)) return '[Circular]';
+  seen.add(data);
 
   if (Array.isArray(data)) {
-    return data.map(item => maskSensitive(item));
+    return data.map(item => maskSensitive(item, seen, depth + 1));
   }
 
   const masked = {};
@@ -136,7 +181,7 @@ function maskSensitive(data) {
     if (isSensitive) {
       masked[key] = '[PROTECTED_ENCRYPTED]';
     } else if (value && typeof value === 'object') {
-      masked[key] = maskSensitive(value);
+      masked[key] = maskSensitive(value, seen, depth + 1);
     } else {
       masked[key] = value;
     }
@@ -149,14 +194,11 @@ function maskSensitive(data) {
  */
 function safeLoggerMiddleware(req, res, next) {
   const timestamp = new Date().toISOString();
-  const safeBody = maskSensitive(req.body);
-
   if (process.env.NODE_ENV !== 'production') {
-    const hasBody = req.body && Object.keys(req.body).length > 0;
-    const bodyStr = hasBody ? JSON.stringify(safeBody) : '';
-    console.log(`[${timestamp}] ${req.method} ${req.originalUrl || req.url} ${bodyStr}`);
+    const method = req.method;
+    const url = req.originalUrl || req.url;
+    console.log(`[${timestamp}] ${method} ${url} [Encrypted Transport]`);
   }
-
   next();
 }
 
@@ -166,6 +208,7 @@ module.exports = {
   encryptTransportPayload,
   decryptTransportPayload,
   decryptPayloadMiddleware,
+  encryptResponseMiddleware,
   maskSensitive,
   safeLoggerMiddleware
 };

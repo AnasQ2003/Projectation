@@ -1,66 +1,110 @@
 const express = require('express');
 const router = express.Router();
 
-// Controllers (Layer 3)
-const { login } = require('./controllers/authController');
+// Controllers
+const { login, verify, profile } = require('./controllers/authController');
+const { ping, getHealth } = require('./controllers/systemController');
 const { getStats } = require('./controllers/statsController');
+const { getSummary: getAnalyticsSummary } = require('./controllers/analyticsController');
 const { listProjects, getProject, addProject, editProject, removeProjectHandler } = require('./controllers/projectController');
 const { listMembers, createMember, editMemberHandler, removeMemberHandler } = require('./controllers/memberController');
-const { listTasks, addTask, editTask, removeTaskHandler } = require('./controllers/taskController');
+const { listTasks, addTask, editTask, updateTaskStatus, removeTaskHandler } = require('./controllers/taskController');
+const { listActivity, logActivity } = require('./controllers/activityController');
+const { listNotifications } = require('./controllers/notificationController');
+const { listCategories } = require('./controllers/categoryController');
+const {
+  listUsers,
+  createUserHandler,
+  updateUserHandler,
+  deleteUserHandler,
+  getMyProjectsHandler
+} = require('./controllers/userController');
 
 // ==========================================
-// 1. HEALTH CHECK
+// 1. SYSTEM & HEALTH (Instant POST Handshakes)
 // ==========================================
-router.get('/health', (req, res) => {
-  res.json({ status: 'ok', server: 'Projectation API (MSSQL)', timestamp: new Date() });
-});
+router.post('/system/ping', ping);
+router.get('/system/ping', ping);
+router.post('/system/health', getHealth);
+router.get('/system/health', getHealth);
+router.get('/health', getHealth); // legacy alias
 
 // ==========================================
-// 2. AUTH
+// 2. AUTHENTICATION & SESSION
 // ==========================================
 router.post('/auth/login', login);
+router.post('/auth/verify', verify);
+router.post('/auth/profile', profile);
 
 // ==========================================
-// 3. STATS (POST + GET)
+// 3. STATS & ANALYTICS
 // ==========================================
 router.post('/stats', getStats);
 router.get('/stats', getStats);
+router.post('/analytics/summary', getAnalyticsSummary);
 
 // ==========================================
 // 4. PROJECTS (POST-first architecture)
 // ==========================================
-router.post('/projects/list', listProjects);          // list all via POST
-router.post('/projects/detail', getProject);            // get single via POST ({ id })
-router.get('/projects', listProjects);          // list all fallback
-router.get('/projects/:id', getProject);            // get single fallback
-router.post('/projects', addProject);            // create
-router.post('/projects/update', editProject);           // update (POST instead of PUT)
-router.post('/projects/:id', editProject);           // update fallback
-router.put('/projects/:id', editProject);           // legacy alias
-router.post('/projects/delete', removeProjectHandler);  // delete (POST instead of DELETE)
+router.post('/projects/list', listProjects);
+router.post('/projects/detail', getProject);
+router.get('/projects', listProjects);
+router.get('/projects/:id', getProject);
+router.post('/projects', addProject);
+router.post('/projects/update', editProject);
+router.post('/projects/:id', editProject);
+router.put('/projects/:id', editProject);
+router.post('/projects/delete', removeProjectHandler);
 
 // ==========================================
 // 5. MEMBERS (POST-first architecture)
 // ==========================================
-router.post('/members/list', listMembers);          // list all via POST
-router.get('/members', listMembers);          // list all fallback
-router.post('/members', createMember);         // create (with project_id in body)
-router.post('/projects/:id/members', createMember);         // create (project_id from URL)
-router.post('/members/update', editMemberHandler);   // update (POST instead of PUT)
-router.post('/members/:id', editMemberHandler);      // update fallback
-router.put('/members/:id', editMemberHandler);       // legacy alias
-router.post('/members/delete', removeMemberHandler);  // delete (POST instead of DELETE)
+router.post('/members/list', listMembers);
+router.get('/members', listMembers);
+router.post('/members', createMember);
+router.post('/projects/:id/members', createMember);
+router.post('/members/update', editMemberHandler);
+router.post('/members/:id', editMemberHandler);
+router.put('/members/:id', editMemberHandler);
+router.post('/members/delete', removeMemberHandler);
 
 // ==========================================
 // 6. TASKS (POST-first architecture)
 // ==========================================
-router.post('/tasks/list', listTasks);            // list all via POST
-router.get('/tasks', listTasks);            // list all fallback
-router.post('/tasks', addTask);              // create (project_id in body)
-router.post('/projects/:id/tasks', addTask);              // create (project_id from URL)
-router.post('/tasks/update', editTask);             // update (POST instead of PUT)
-router.post('/tasks/:id', editTask);             // update fallback
-router.put('/tasks/:id', editTask);             // legacy alias
-router.post('/tasks/delete', removeTaskHandler);    // delete (POST instead of DELETE)
+router.post('/tasks/list', listTasks);
+router.get('/tasks', listTasks);
+router.post('/tasks', addTask);
+router.post('/projects/:id/tasks', addTask);
+router.post('/tasks/update', editTask);
+router.post('/tasks/status', updateTaskStatus);
+router.post('/tasks/:id', editTask);
+router.put('/tasks/:id', editTask);
+router.post('/tasks/delete', removeTaskHandler);
+
+// ==========================================
+// 7. ACTIVITY AUDIT STREAM
+// ==========================================
+router.post('/activity/list', listActivity);
+router.post('/activity/log', logActivity);
+
+// ==========================================
+// 8. NOTIFICATIONS & ALERTS
+// ==========================================
+router.post('/notifications', listNotifications);
+
+// ==========================================
+// 9. CATEGORIES
+// ==========================================
+router.post('/categories/list', listCategories);
+router.get('/categories', listCategories);
+
+// ==========================================
+// 10. USER MANAGEMENT & USER PORTAL (POST-first)
+// ==========================================
+router.post('/users/list', listUsers);
+router.post('/users/create', createUserHandler);
+router.post('/users/update', updateUserHandler);
+router.post('/users/delete', deleteUserHandler);
+router.post('/users/my-projects', getMyProjectsHandler);
 
 module.exports = router;

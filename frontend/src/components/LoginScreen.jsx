@@ -1,9 +1,22 @@
 import React, { useState } from 'react';
-import { KanbanSquare, Lock, User, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { 
+  KanbanSquare, 
+  Lock, 
+  User, 
+  ArrowRight, 
+  Eye, 
+  EyeOff, 
+  AlertCircle,
+  Shield,
+  UserCheck
+} from 'lucide-react';
 import { api } from '../services/api';
 import { encryptClientData, decryptClientData } from '../utils/crypto';
 
 export default function LoginScreen({ onLoginSuccess }) {
+  // Portal Role Tab: 'admin' | 'user'
+  const [portalRole, setPortalRole] = useState('admin');
+
   const [rememberMe, setRememberMe] = useState(() => {
     return localStorage.getItem('projectation_remember_me') === 'true';
   });
@@ -30,7 +43,8 @@ export default function LoginScreen({ onLoginSuccess }) {
     setLoading(true);
 
     try {
-      const data = await api.login(username, password);
+      // Pass portalRole to enforce server-side role separation
+      const data = await api.login(username, password, portalRole);
 
       // Persist or clear Remember Me (remembers username only, NEVER the password)
       if (rememberMe) {
@@ -42,20 +56,23 @@ export default function LoginScreen({ onLoginSuccess }) {
       }
       localStorage.removeItem('projectation_remembered_password');
 
-      const adminUser = {
+      const loggedInUser = {
         ...data.user,
-        name: data.user.name || 'Admin',
-        role: 'Lead Administrator'
+        name: data.user.name || (portalRole === 'admin' ? 'Admin' : 'Team Member'),
+        role: data.user.role || (portalRole === 'admin' ? 'Admin' : 'User')
       };
+
       localStorage.setItem('projectation_token', encryptClientData(data.token));
-      localStorage.setItem('projectation_user', encryptClientData(JSON.stringify(adminUser)));
-      onLoginSuccess(adminUser);
+      localStorage.setItem('projectation_user', encryptClientData(JSON.stringify(loggedInUser)));
+      onLoginSuccess(loggedInUser);
     } catch (err) {
       setError(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
   };
+
+  const isAdminTab = portalRole === 'admin';
 
   return (
     <div style={{
@@ -70,34 +87,97 @@ export default function LoginScreen({ onLoginSuccess }) {
         className="glass-card"
         style={{
           width: '100%',
-          maxWidth: '400px',
+          maxWidth: '420px',
           borderRadius: '16px',
           padding: '2.25rem 2rem',
           boxShadow: '0 20px 50px -10px rgba(31, 38, 135, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.95)'
         }}
       >
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
           <div style={{
             width: '46px',
             height: '46px',
             borderRadius: '12px',
-            backgroundColor: 'var(--accent-primary)',
+            backgroundColor: isAdminTab ? 'var(--accent-primary)' : '#059669',
             color: '#ffffff',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)',
-            marginBottom: '1rem'
+            boxShadow: `0 4px 10px ${isAdminTab ? 'rgba(37, 99, 235, 0.25)' : 'rgba(5, 150, 105, 0.25)'}`,
+            marginBottom: '0.85rem',
+            transition: 'background-color 0.2s ease'
           }}>
             <KanbanSquare size={24} />
           </div>
           <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
-            Welcome back
+            {isAdminTab ? 'Administrator Portal' : 'Team Member Portal'}
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            Sign in to access your project dashboard
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            {isAdminTab
+              ? 'Sign in to access your administrative dashboard'
+              : 'Sign in to view your assigned projects and deadlines'}
           </p>
+        </div>
+
+        {/* Role Portal Selector Tabs */}
+        <div style={{
+          display: 'flex',
+          backgroundColor: '#f1f5f9',
+          padding: '4px',
+          borderRadius: '10px',
+          marginBottom: '1.5rem',
+          border: '1px solid var(--border-subtle)'
+        }}>
+          <button
+            type="button"
+            onClick={() => { setPortalRole('admin'); setError(''); }}
+            style={{
+              flex: 1,
+              padding: '0.5rem 0.6rem',
+              borderRadius: '7px',
+              fontSize: '0.825rem',
+              fontWeight: isAdminTab ? 700 : 500,
+              backgroundColor: isAdminTab ? '#ffffff' : 'transparent',
+              color: isAdminTab ? 'var(--accent-primary)' : 'var(--text-muted)',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: isAdminTab ? '0 2px 5px rgba(0,0,0,0.06)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Shield size={14} />
+            <span>Administrator</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setPortalRole('user'); setError(''); }}
+            style={{
+              flex: 1,
+              padding: '0.5rem 0.6rem',
+              borderRadius: '7px',
+              fontSize: '0.825rem',
+              fontWeight: !isAdminTab ? 700 : 500,
+              backgroundColor: !isAdminTab ? '#ffffff' : 'transparent',
+              color: !isAdminTab ? '#059669' : 'var(--text-muted)',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: !isAdminTab ? '0 2px 5px rgba(0,0,0,0.06)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <UserCheck size={14} />
+            <span>Team Member</span>
+          </button>
         </div>
 
         {error && (
@@ -113,12 +193,12 @@ export default function LoginScreen({ onLoginSuccess }) {
             alignItems: 'center',
             gap: '0.45rem'
           }}>
-            <AlertCircle size={16} />
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleLogin} autoComplete="off">
           {/* Username */}
           <div style={{ marginBottom: '1.1rem' }}>
             <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
@@ -132,7 +212,7 @@ export default function LoginScreen({ onLoginSuccess }) {
                   left: '0.85rem', 
                   top: '50%', 
                   transform: 'translateY(-50%)', 
-                  color: 'var(--accent-primary)', 
+                  color: isAdminTab ? 'var(--accent-primary)' : '#059669', 
                   zIndex: 10, 
                   pointerEvents: 'none' 
                 }} 
@@ -143,7 +223,9 @@ export default function LoginScreen({ onLoginSuccess }) {
                 style={{ paddingLeft: '2.45rem' }}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
+                placeholder={isAdminTab ? "Enter admin username (e.g. anas)" : "Enter user username (e.g. ahmed, sarah, david)"}
+                autoComplete="off"
+                spellCheck="false"
                 required
               />
             </div>
@@ -162,7 +244,7 @@ export default function LoginScreen({ onLoginSuccess }) {
                   left: '0.85rem', 
                   top: '50%', 
                   transform: 'translateY(-50%)', 
-                  color: 'var(--accent-primary)', 
+                  color: isAdminTab ? 'var(--accent-primary)' : '#059669', 
                   zIndex: 10, 
                   pointerEvents: 'none' 
                 }} 
@@ -173,7 +255,9 @@ export default function LoginScreen({ onLoginSuccess }) {
                 style={{ paddingLeft: '2.45rem', paddingRight: '2.45rem' }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder={isAdminTab ? "Enter admin password" : "Enter user password"}
+                autoComplete="new-password"
+                spellCheck="false"
                 required
               />
               <button
@@ -208,13 +292,13 @@ export default function LoginScreen({ onLoginSuccess }) {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 style={{
                   cursor: 'pointer',
-                  accentColor: 'var(--accent-primary)',
+                  accentColor: isAdminTab ? 'var(--accent-primary)' : '#059669',
                   width: '15px',
                   height: '15px',
                   borderRadius: '4px'
                 }}
               />
-              <span>Remember me</span>
+              <span>Remember username</span>
             </label>
           </div>
 
@@ -222,12 +306,36 @@ export default function LoginScreen({ onLoginSuccess }) {
             type="submit"
             className="btn-primary"
             disabled={loading}
-            style={{ width: '100%', justifyContent: 'center', padding: '0.7rem' }}
+            style={{ 
+              width: '100%', 
+              justifyContent: 'center', 
+              padding: '0.7rem',
+              backgroundColor: isAdminTab ? 'var(--accent-primary)' : '#059669',
+              boxShadow: `0 4px 10px ${isAdminTab ? 'rgba(37, 99, 235, 0.25)' : 'rgba(5, 150, 105, 0.25)'}`
+            }}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Authenticating...' : isAdminTab ? 'Sign In as Administrator' : 'Sign In as Team Member'}
             <ArrowRight size={16} />
           </button>
         </form>
+
+        {/* Quick Credentials Hint */}
+        <div style={{
+          marginTop: '1.25rem',
+          padding: '0.65rem 0.85rem',
+          borderRadius: '8px',
+          backgroundColor: 'var(--bg-app)',
+          fontSize: '0.75rem',
+          color: 'var(--text-muted)',
+          textAlign: 'center',
+          border: '1px dashed var(--border-subtle)'
+        }}>
+          {isAdminTab ? (
+            <span>Admin Credentials: <strong>anas</strong> / <strong>admin123</strong></span>
+          ) : (
+            <span>Sample Users: <strong>ahmed</strong>, <strong>sarah</strong>, <strong>david</strong> / <strong>user123</strong></span>
+          )}
+        </div>
       </div>
     </div>
   );
