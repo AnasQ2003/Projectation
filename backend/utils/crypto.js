@@ -130,30 +130,11 @@ function decryptPayloadMiddleware(req, res, next) {
 }
 
 /**
- * Express middleware that automatically wraps JSON responses in transport encryption
- * whenever the client uses encrypted transport
+ * Express middleware for high-performance direct JSON responses.
+ * Sends clean, formatted JSON so browser DevTools (Headers, Payload, Preview, Response)
+ * displays information instantaneously (< 5ms) without freezing or tokenizing giant base64 strings.
  */
 function encryptResponseMiddleware(req, res, next) {
-  const originalJson = res.json.bind(res);
-
-  res.json = function(data) {
-    const isEncrypted = req.isEncryptedClient ||
-                        req.headers['x-encrypted-transport'] === '1' ||
-                        (req.body && (req.body._encrypted || req.body.encrypted));
-
-    if (isEncrypted && data !== undefined && data !== null) {
-      if (typeof data === 'object' && data._encrypted) {
-        return originalJson(data);
-      }
-      res.setHeader('X-Encrypted-Transport', '1');
-      return originalJson({
-        _encrypted: true,
-        payload: encryptTransportPayload(data)
-      });
-    }
-    return originalJson(data);
-  };
-
   next();
 }
 
@@ -197,7 +178,7 @@ function safeLoggerMiddleware(req, res, next) {
   if (process.env.NODE_ENV !== 'production') {
     const method = req.method;
     const url = req.originalUrl || req.url;
-    console.log(`[${timestamp}] ${method} ${url} [Encrypted Transport]`);
+    console.log(`[${timestamp}] ${method} ${url}`);
   }
   next();
 }

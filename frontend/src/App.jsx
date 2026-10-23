@@ -63,8 +63,6 @@ export default function App() {
     setUser(userData);
     setShowSplash(false);
     triggerRefresh();
-    const isAdmin = userData.role === 'Admin' || (userData.role && userData.role.includes('Admin'));
-    api.syncWorkspaceStream(isAdmin, userData).catch(() => {});
   };
 
   // Theme: strictly white/light only
@@ -72,24 +70,30 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', 'light');
     localStorage.setItem('projectation_theme', 'light');
 
-    // Background session verification — if token valid, refresh stream
+    // Background session verification — if token valid, refresh user
     const storedToken = localStorage.getItem('projectation_token');
     if (storedToken) {
-      api.verifyToken()
+      let token = storedToken;
+      try {
+        const dec = decryptClientData(storedToken);
+        if (dec) token = dec;
+      } catch {}
+
+      api.verifyToken(token)
         .then((res) => {
           if (res && res.valid && res.user) {
             setUser(res.user);
             localStorage.setItem('projectation_user', encryptClientData(JSON.stringify(res.user)));
-            const isAdmin = res.user.role === 'Admin' || (res.user.role && res.user.role.includes('Admin'));
-            api.syncWorkspaceStream(isAdmin, res.user).catch(() => {});
+          } else if (res && res.valid === false) {
+            // Token is expired/invalid — clean up stale credentials cleanly
+            localStorage.removeItem('projectation_token');
+            localStorage.removeItem('projectation_user');
+            setUser(null);
           }
         })
         .catch(() => {
-          // Retain existing session on transient network errors
+          // Retain existing session on transient network error
         });
-    } else {
-      // Fast lightweight startup handshake
-      api.ping().catch(() => {});
     }
   }, []);
 

@@ -24,7 +24,7 @@ app.use((req, res, next) => {
 app.use(cors({
   origin: true,
   credentials: true,
-  exposedHeaders: ['X-Encrypted-Transport', 'Content-Length', 'Content-Type']
+  exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(safeLoggerMiddleware);

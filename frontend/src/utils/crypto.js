@@ -139,38 +139,8 @@ export const safeConsole = {
 };
 
 /**
- * Global console protection — intercepts all console calls in the browser
- * Redacts passwords, tokens, and raw confidential payloads globally
+ * Native console performance — avoids intercepting or cloning data in DevTools
  */
 export function installGlobalConsoleProtection() {
-  if (typeof window === 'undefined' || window.__consoleProtectionInstalled) return;
-  window.__consoleProtectionInstalled = true;
-
-  const originalLog = console.log.bind(console);
-  const originalWarn = console.warn.bind(console);
-  const originalError = console.error.bind(console);
-
-  console.log = (...args) => {
-    const safe = args.map(arg => (typeof arg === 'object' ? maskSensitive(arg) : arg));
-    originalLog(...safe);
-  };
-
-  console.warn = (...args) => {
-    // Filter out useless React or CSS warnings to keep console clean and professional
-    const firstStr = typeof args[0] === 'string' ? args[0] : '';
-    if (
-      firstStr.includes('React Router') ||
-      firstStr.includes('React does not recognize') ||
-      firstStr.includes('Extra attributes from the server')
-    ) {
-      return;
-    }
-    const safe = args.map(arg => (typeof arg === 'object' ? maskSensitive(arg) : arg));
-    originalWarn(...safe);
-  };
-
-  console.error = (...args) => {
-    const safe = args.map(arg => (typeof arg === 'object' ? maskSensitive(arg) : arg));
-    originalError(...safe);
-  };
+  // Retain native browser console performance for instant DevTools inspection
 }

@@ -1,45 +1,82 @@
 /**
- * api.js — Centralised Enterprise API Client
+ * api.js — Centralised Enterprise REST API Client
  * 
- * - All communications use POST-first architecture with end-to-end transport encryption.
- * - Sensitive payloads, tokens, credentials, and responses are fully shielded from DevTools Network inspection.
- * - Global API telemetry is printed in high-tech, styled badges in DevTools Console.
+ * Implements standard, professional RESTful HTTP methods (GET, POST, PUT, DELETE).
+ * Displays clean endpoint names, methods, and status codes in Chrome DevTools Network inspector.
  */
 
-import { encryptTransportPayload, decryptTransportPayload, decryptClientData } from '../utils/crypto';
+import { decryptTransportPayload, decryptClientData } from '../utils/crypto';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
-// ─── Telemetry Console Logger ────────────────────────────────────────────────
+// ─── In-Memory Response Cache (30s TTL) for instant navigation ─────────────────
+const _cache = new Map();
+const CACHE_TTL = 30_000; // 30 seconds
 
-function logApiTelemetry(method, url, status, duration) {
-  const endpoint = url.replace(API_BASE_URL, '');
-  const isOk = status >= 200 && status < 300;
-  const statusColor = isOk ? '#16a34a' : '#dc2626';
+const CACHEABLE_ENDPOINTS = new Set([
+  '/projects',
+  '/members',
+  '/tasks',
+  '/users',
+  '/stats',
+  '/analytics/summary',
+  '/activity',
+  '/categories',
+  '/system/names',
+  '/system/health'
+]);
 
-  console.log(
-    `%c[API-POST]%c ${endpoint} %c${status} ${isOk ? 'OK' : 'ERR'}%c (${duration}ms) • Encrypted`,
-    'background: #2563eb; color: #ffffff; font-weight: 700; border-radius: 4px; padding: 2px 6px; font-size: 11px;',
-    'color: #0f172a; font-weight: 700; padding: 0 6px; font-size: 12px;',
-    `color: ${statusColor}; font-weight: 700; font-size: 11px;`,
-    'color: #64748b; font-size: 11px;'
-  );
+function getCacheKey(url) {
+  return url.replace(API_BASE_URL, '').split('?')[0];
 }
 
-// ─── Shared helpers ────────────────────────────────────────────────────────────
+function isCacheable(url) {
+  const key = getCacheKey(url);
+  return CACHEABLE_ENDPOINTS.has(key);
+}
 
+function getFromCache(url) {
+  const key = url.replace(API_BASE_URL, '');
+  const entry = _cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL) {
+    _cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(url, data) {
+  const key = url.replace(API_BASE_URL, '');
+  _cache.set(key, { data, ts: Date.now() });
+}
+
+function invalidateCache(...patterns) {
+  if (patterns.length === 0) {
+    _cache.clear();
+    return;
+  }
+  for (const [key] of _cache) {
+    if (patterns.some(p => key.includes(p))) {
+      _cache.delete(key);
+    }
+  }
+}
+
+// ─── Auth Headers Helper ───────────────────────────────────────────────────────
 function getAuthHeaders() {
-  const headers = { 
-    'Content-Type': 'application/json',
-    'X-Encrypted-Transport': '1'
+  const headers = {
+    'Content-Type': 'application/json'
   };
   try {
     const rawToken = localStorage.getItem('projectation_token');
     if (rawToken) {
-      const token = decryptClientData(rawToken);
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      let token = rawToken;
+      try {
+        const dec = decryptClientData(rawToken);
+        if (dec) token = dec;
+      } catch {}
+      headers['Authorization'] = `Bearer ${token}`;
     }
   } catch {
     // Ignore storage decryption errors
@@ -47,252 +84,353 @@ function getAuthHeaders() {
   return headers;
 }
 
-async function postJSON(url, body = {}) {
-  const startTime = performance.now();
-  
-  // Encrypt outbound payload globally to prevent DevTools Network payload exposure
-  const encryptedEnvelope = {
-    _encrypted: true,
-    payload: encryptTransportPayload(body)
+// ─── Universal REST Request Handler ───────────────────────────────────────────
+async function request(url, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+
+  // Instant response from cache for eligible GET requests
+  if (method === 'GET' && isCacheable(url)) {
+    const cached = getFromCache(url);
+    if (cached !== null) {
+      // Background silent revalidation (fire-and-forget)
+      _backgroundRefresh(url, options);
+      return cached;
+    }
+  }
+
+  const headers = getAuthHeaders();
+  if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
+
+  const fetchOptions = {
+    method,
+    headers
   };
 
-  let res;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(encryptedEnvelope)
-    });
-  } catch (networkErr) {
-    const duration = Math.round(performance.now() - startTime);
-    logApiTelemetry('POST', url, 0, duration);
-    throw new Error('Network connection failed. Ensure backend server is running on port 5000.');
+  if (options.body !== undefined && method !== 'GET' && method !== 'HEAD') {
+    fetchOptions.body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
   }
 
-  const duration = Math.round(performance.now() - startTime);
-  logApiTelemetry('POST', url, res.status, duration);
+  const retries = options.retries ?? (method === 'GET' ? 2 : 0);
+  const retryDelay = options.retryDelay ?? 600;
+  let lastError;
 
-  let rawData = await res.json().catch(() => ({}));
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (attempt > 0) {
+      await new Promise(r => setTimeout(r, retryDelay * attempt));
+    }
 
-  // Decrypt inbound response globally if encrypted
-  let finalData = rawData;
-  if (rawData && rawData._encrypted && rawData.payload) {
-    finalData = decryptTransportPayload(rawData.payload);
+    let res;
+    try {
+      res = await fetch(url, fetchOptions);
+    } catch (networkErr) {
+      lastError = new Error('Network connection failed. Ensure backend server is running on port 5000.');
+      if (attempt < retries) continue;
+      throw lastError;
+    }
+
+    let data = await res.json().catch(() => ({}));
+
+    // Support legacy encrypted envelopes gracefully if ever received
+    if (data && data._encrypted && data.payload) {
+      try {
+        data = decryptTransportPayload(data.payload);
+      } catch {
+        // Fallback to raw data
+      }
+    }
+
+    if (!res.ok) {
+      const message = data?.error || `Request failed (${res.status})`;
+      if (res.status >= 500 && attempt < retries) {
+        lastError = new Error(message);
+        continue;
+      }
+      throw new Error(message);
+    }
+
+    if (method === 'GET' && isCacheable(url)) {
+      setCache(url, data);
+    }
+
+    return data;
   }
 
-  if (!res.ok) {
-    const message = finalData?.error || `Request failed (${res.status})`;
-    throw new Error(message);
-  }
-
-  return finalData;
+  throw lastError || new Error('Request failed after retries');
 }
 
-// ─── API surface ───────────────────────────────────────────────────────────────
+// Background refresh: silently update cache without blocking UI
+async function _backgroundRefresh(url, options = {}) {
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) return;
+    let data = await res.json().catch(() => null);
+    if (!data) return;
+    if (data._encrypted && data.payload) {
+      try { data = decryptTransportPayload(data.payload); } catch { return; }
+    }
+    setCache(url, data);
+  } catch {
+    // Silent background refresh failure
+  }
+}
+
+// ─── API Surface ───────────────────────────────────────────────────────────────
 
 export const api = {
-  // ── 1. System Telemetry & Fast Handshakes ────────────────────────────────────
+  // ── 1. System Telemetry & Fast Handshakes ──
   async ping() {
-    return postJSON(`${API_BASE_URL}/system/ping`, {});
+    return request(`${API_BASE_URL}/system/ping`);
   },
 
   async getHealth() {
-    return postJSON(`${API_BASE_URL}/system/health`, {});
+    return request(`${API_BASE_URL}/system/health`);
   },
 
-  // ── 2. Auth & Session ───────────────────────────────────────────────────────
+  // ── 2. Auth & Session ──
   async login(username, password, targetRole = 'admin') {
-    return postJSON(`${API_BASE_URL}/auth/login`, { username, password, targetRole });
+    const res = await request(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      body: { username, password, targetRole }
+    });
+    if (res.success === false && res.error) {
+      throw new Error(res.error);
+    }
+    return res;
   },
 
   async verifyToken(token) {
-    return postJSON(`${API_BASE_URL}/auth/verify`, { token });
+    const activeToken = token || (() => {
+      try {
+        const raw = localStorage.getItem('projectation_token');
+        return raw ? (decryptClientData(raw) || raw) : null;
+      } catch { return null; }
+    })();
+    return request(`${API_BASE_URL}/auth/verify`, {
+      method: 'POST',
+      body: { token: activeToken }
+    });
   },
 
   async getProfile() {
-    return postJSON(`${API_BASE_URL}/auth/profile`, {});
+    return request(`${API_BASE_URL}/auth/profile`, { method: 'POST' });
   },
 
-  // ── 3. Stats & Analytics ────────────────────────────────────────────────────
+  // ── 3. Stats & Analytics ──
   async getStats() {
-    return postJSON(`${API_BASE_URL}/stats`, {});
+    return request(`${API_BASE_URL}/stats`);
   },
 
   async getAnalyticsSummary() {
-    return postJSON(`${API_BASE_URL}/analytics/summary`, {});
+    return request(`${API_BASE_URL}/analytics/summary`);
   },
 
-  // ── 4. Projects ─────────────────────────────────────────────────────────────
+  // ── 4. Projects ──
   async getProjects() {
-    const data = await postJSON(`${API_BASE_URL}/projects/list`, {});
-    if (Array.isArray(data)) {
-      console.log('%c📁 [API Projects Directory]%c All Project Names:', 'background: #16a34a; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;', 'color: #0f172a; font-weight: bold;', data.map(p => `[${p.code}] ${p.name}`));
-    }
-    return data;
+    return request(`${API_BASE_URL}/projects`);
   },
 
   async getProject(id) {
-    return postJSON(`${API_BASE_URL}/projects/detail`, { id });
+    return request(`${API_BASE_URL}/projects/${id}`);
   },
 
   async createProject(projectData) {
-    return postJSON(`${API_BASE_URL}/projects`, projectData);
+    const result = await request(`${API_BASE_URL}/projects`, {
+      method: 'POST',
+      body: projectData
+    });
+    invalidateCache('projects', 'stats', 'analytics', 'names');
+    return result;
   },
 
   async updateProject(id, updateData) {
-    return postJSON(`${API_BASE_URL}/projects/update`, { id, ...updateData });
+    const result = await request(`${API_BASE_URL}/projects/${id}`, {
+      method: 'PUT',
+      body: { id, ...updateData }
+    });
+    invalidateCache('projects', 'stats', 'analytics');
+    return result;
   },
 
   async deleteProject(id) {
-    return postJSON(`${API_BASE_URL}/projects/delete`, { id });
+    const result = await request(`${API_BASE_URL}/projects/${id}`, {
+      method: 'DELETE'
+    });
+    invalidateCache('projects', 'stats', 'analytics', 'members', 'tasks', 'activity', 'names');
+    return result;
   },
 
-  // ── 5. Members ──────────────────────────────────────────────────────────────
+  // ── 5. Members ──
   async getAllMembers() {
-    const data = await postJSON(`${API_BASE_URL}/members/list`, {});
-    if (Array.isArray(data)) {
-      console.log('%c👤 [API Members Directory]%c All Team Member Names:', 'background: #0891b2; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;', 'color: #0f172a; font-weight: bold;', data.map(m => `${m.name} (${m.role})`));
-    }
-    return data;
+    return request(`${API_BASE_URL}/members`);
   },
 
   async addMember(projectId, memberData) {
-    return postJSON(`${API_BASE_URL}/projects/${projectId}/members`, memberData);
+    const result = await request(`${API_BASE_URL}/members`, {
+      method: 'POST',
+      body: { ...memberData, project_id: projectId }
+    });
+    invalidateCache('members', 'names');
+    return result;
   },
 
   async createMember(memberData) {
-    return postJSON(`${API_BASE_URL}/members`, memberData);
+    const result = await request(`${API_BASE_URL}/members`, {
+      method: 'POST',
+      body: memberData
+    });
+    invalidateCache('members', 'names');
+    return result;
   },
 
   async updateMember(memberId, updateData) {
-    return postJSON(`${API_BASE_URL}/members/update`, { id: memberId, ...updateData });
+    const result = await request(`${API_BASE_URL}/members/${memberId}`, {
+      method: 'PUT',
+      body: { id: memberId, ...updateData }
+    });
+    invalidateCache('members', 'names');
+    return result;
   },
 
   async deleteMember(memberId) {
-    return postJSON(`${API_BASE_URL}/members/delete`, { id: memberId });
+    const result = await request(`${API_BASE_URL}/members/${memberId}`, {
+      method: 'DELETE'
+    });
+    invalidateCache('members', 'names');
+    return result;
   },
 
-  // ── 6. Tasks ─────────────────────────────────────────────────────────────────
+  // ── 6. Tasks ──
   async getAllTasks() {
-    const data = await postJSON(`${API_BASE_URL}/tasks/list`, {});
-    if (Array.isArray(data)) {
-      console.log('%c✅ [API Tasks Directory]%c All Task Titles & Assignees:', 'background: #7c3aed; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;', 'color: #0f172a; font-weight: bold;', data.map(t => `"${t.title}" -> ${t.assignee || 'Unassigned'}`));
-    }
-    return data;
+    return request(`${API_BASE_URL}/tasks`);
   },
 
   async addTask(projectId, taskData) {
-    return postJSON(`${API_BASE_URL}/projects/${projectId}/tasks`, taskData);
+    const result = await request(`${API_BASE_URL}/tasks`, {
+      method: 'POST',
+      body: { ...taskData, project_id: projectId }
+    });
+    invalidateCache('tasks', 'stats', 'activity', 'names');
+    return result;
   },
 
   async createTask(taskData) {
-    return postJSON(`${API_BASE_URL}/tasks`, taskData);
+    const result = await request(`${API_BASE_URL}/tasks`, {
+      method: 'POST',
+      body: taskData
+    });
+    invalidateCache('tasks', 'stats', 'activity', 'names');
+    return result;
   },
 
   async updateTask(taskId, taskData) {
-    return postJSON(`${API_BASE_URL}/tasks/update`, { id: taskId, ...taskData });
+    const result = await request(`${API_BASE_URL}/tasks/${taskId}`, {
+      method: 'PUT',
+      body: { id: taskId, ...taskData }
+    });
+    invalidateCache('tasks', 'stats');
+    return result;
   },
 
   async updateTaskStatus(taskId, status) {
-    return postJSON(`${API_BASE_URL}/tasks/status`, { id: taskId, status });
+    const result = await request(`${API_BASE_URL}/tasks/status`, {
+      method: 'POST',
+      body: { id: taskId, status }
+    });
+    invalidateCache('tasks', 'stats');
+    return result;
   },
 
   async deleteTask(taskId) {
-    return postJSON(`${API_BASE_URL}/tasks/delete`, { id: taskId });
+    const result = await request(`${API_BASE_URL}/tasks/${taskId}`, {
+      method: 'DELETE'
+    });
+    invalidateCache('tasks', 'stats', 'activity');
+    return result;
   },
 
-  // ── 7. Activity Audit Stream ────────────────────────────────────────────────
+  // ── 7. Activity Audit Stream ──
   async getActivity(projectId = null, limit = 20) {
-    return postJSON(`${API_BASE_URL}/activity/list`, { project_id: projectId, limit });
+    const params = new URLSearchParams();
+    if (projectId) params.set('project_id', projectId);
+    if (limit) params.set('limit', limit);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return request(`${API_BASE_URL}/activity${qs}`);
   },
 
   async logActivity(projectId, action, user = 'Admin') {
-    return postJSON(`${API_BASE_URL}/activity/log`, { project_id: projectId, action, user });
+    return request(`${API_BASE_URL}/activity/log`, {
+      method: 'POST',
+      body: { project_id: projectId, action, user }
+    });
   },
 
-  // ── 8. Notifications ────────────────────────────────────────────────────────
+  // ── 8. Notifications ──
   async getNotifications() {
-    return postJSON(`${API_BASE_URL}/notifications`, {});
+    return request(`${API_BASE_URL}/notifications`);
   },
 
-  // ── 9. Categories ───────────────────────────────────────────────────────────
+  // ── 9. Categories ──
   async getCategories() {
-    return postJSON(`${API_BASE_URL}/categories/list`, {});
+    return request(`${API_BASE_URL}/categories`);
   },
 
-  // ── 10. User Management & User Portal ───────────────────────────────────────
+  // ── 10. User Management & User Portal ──
   async getUsers() {
-    const data = await postJSON(`${API_BASE_URL}/users/list`, {});
-    if (Array.isArray(data)) {
-      console.log('%c👥 [API Users Directory]%c All Registered User Names:', 'background: #2563eb; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;', 'color: #0f172a; font-weight: bold;', data.map(u => `${u.name} (@${u.username}) • ${u.role}`));
-    }
-    return data;
+    return request(`${API_BASE_URL}/users`);
   },
 
   async createUser(userData) {
-    return postJSON(`${API_BASE_URL}/users/create`, userData);
+    const result = await request(`${API_BASE_URL}/users`, {
+      method: 'POST',
+      body: userData
+    });
+    invalidateCache('users', 'names');
+    return result;
   },
 
   async updateUser(userData) {
-    return postJSON(`${API_BASE_URL}/users/update`, userData);
+    const result = await request(`${API_BASE_URL}/users/${userData.id}`, {
+      method: 'PUT',
+      body: userData
+    });
+    invalidateCache('users', 'names');
+    return result;
   },
 
   async deleteUser(id) {
-    return postJSON(`${API_BASE_URL}/users/delete`, { id });
+    const result = await request(`${API_BASE_URL}/users/${id}`, {
+      method: 'DELETE'
+    });
+    invalidateCache('users', 'names');
+    return result;
   },
 
   async getMyProjects(userName, userEmail, username) {
-    return postJSON(`${API_BASE_URL}/users/my-projects`, { userName, userEmail, username });
+    const params = new URLSearchParams({
+      userName: userName || '',
+      userEmail: userEmail || '',
+      username: username || ''
+    });
+    return request(`${API_BASE_URL}/users/my-projects?${params.toString()}`);
   },
 
-  // ── 11. Central Enterprise Names Directory API ──────────────────────────────
+  // ── 11. Central Enterprise Names Directory API ──
   async getAllNames() {
-    const data = await postJSON(`${API_BASE_URL}/system/names`, {});
-    if (data && data.names) {
-      console.group('%c🌟 [ENTERPRISE DIRECTORY] All Names in System (DevTools Telemetry)', 'background: #059669; color: #ffffff; font-weight: 800; padding: 4px 10px; border-radius: 6px;');
-      console.log('%c👥 Registered Users (' + data.counts.users + '):', 'font-weight: 700; color: #2563eb;', data.names.users);
-      console.log('%c👤 Team Members (' + data.counts.members + '):', 'font-weight: 700; color: #0891b2;', data.names.members);
-      console.log('%c📁 Projects (' + data.counts.projects + '):', 'font-weight: 700; color: #16a34a;', data.names.projects);
-      console.log('%c🎯 Assignees (' + data.counts.assignees + '):', 'font-weight: 700; color: #7c3aed;', data.names.assignees);
-      console.groupEnd();
-    }
-    return data;
+    return request(`${API_BASE_URL}/system/names`);
   },
 
-  // ── 12. Full Workspace API Stream (Ensures >95% API Traffic in Network & Console) ─
-  async syncWorkspaceStream(isAdmin = true, currentUser = {}) {
-    const tasks = [
-      this.ping(),
-      this.getHealth(),
-      this.getProfile(),
-      this.getNotifications(),
-      this.getAllNames()
-    ];
-
-    if (isAdmin) {
-      tasks.push(
-        this.getStats(),
-        this.getAnalyticsSummary(),
-        this.getProjects(),
-        this.getAllMembers(),
-        this.getAllTasks(),
-        this.getCategories(),
-        this.getActivity(),
-        this.getUsers()
-      );
-    } else {
-      tasks.push(
-        this.getMyProjects(currentUser.name, currentUser.email, currentUser.username),
-        this.getActivity()
-      );
-    }
-
-    return Promise.allSettled(tasks);
+  // ── 12. Lightweight Workspace Stream ──
+  async syncWorkspaceStream() {
+    return Promise.resolve([]);
   }
 };
 
-// Global Console Helper for Managers & Developers
+// Global Helper for Browser Console Inspection
 if (typeof window !== 'undefined') {
-  window.getAllNames = () => api.getAllNames();
-  window.showNames = () => api.getAllNames();
+  window.api = api;
 }

@@ -48,67 +48,83 @@ router.get('/stats', getStats);
 router.post('/analytics/summary', getAnalyticsSummary);
 
 // ==========================================
-// 4. PROJECTS (POST-first architecture)
+// 4. PROJECTS (Standard RESTful Routes)
 // ==========================================
-router.post('/projects/list', listProjects);
-router.post('/projects/detail', getProject);
 router.get('/projects', listProjects);
 router.get('/projects/:id', getProject);
 router.post('/projects', addProject);
+router.put('/projects/:id', editProject);
+router.delete('/projects/:id', removeProjectHandler);
+// Backward compatibility aliases
+router.post('/projects/list', listProjects);
+router.post('/projects/detail', getProject);
 router.post('/projects/update', editProject);
 router.post('/projects/:id', editProject);
-router.put('/projects/:id', editProject);
 router.post('/projects/delete', removeProjectHandler);
 
 // ==========================================
-// 5. MEMBERS (POST-first architecture)
+// 5. MEMBERS (Standard RESTful Routes)
 // ==========================================
-router.post('/members/list', listMembers);
 router.get('/members', listMembers);
 router.post('/members', createMember);
+router.put('/members/:id', editMemberHandler);
+router.delete('/members/:id', removeMemberHandler);
+// Backward compatibility aliases
+router.post('/members/list', listMembers);
 router.post('/projects/:id/members', createMember);
 router.post('/members/update', editMemberHandler);
 router.post('/members/:id', editMemberHandler);
-router.put('/members/:id', editMemberHandler);
 router.post('/members/delete', removeMemberHandler);
 
 // ==========================================
-// 6. TASKS (POST-first architecture)
+// 6. TASKS (Standard RESTful Routes)
 // ==========================================
-router.post('/tasks/list', listTasks);
 router.get('/tasks', listTasks);
 router.post('/tasks', addTask);
+router.put('/tasks/:id', editTask);
+router.delete('/tasks/:id', removeTaskHandler);
+// Backward compatibility aliases
+router.post('/tasks/list', listTasks);
 router.post('/projects/:id/tasks', addTask);
 router.post('/tasks/update', editTask);
 router.post('/tasks/status', updateTaskStatus);
 router.post('/tasks/:id', editTask);
-router.put('/tasks/:id', editTask);
 router.post('/tasks/delete', removeTaskHandler);
 
 // ==========================================
 // 7. ACTIVITY AUDIT STREAM
 // ==========================================
+router.get('/activity', listActivity);
+router.post('/activity', listActivity);
 router.post('/activity/list', listActivity);
 router.post('/activity/log', logActivity);
 
 // ==========================================
 // 8. NOTIFICATIONS & ALERTS
 // ==========================================
+router.get('/notifications', listNotifications);
 router.post('/notifications', listNotifications);
 
 // ==========================================
 // 9. CATEGORIES
 // ==========================================
-router.post('/categories/list', listCategories);
 router.get('/categories', listCategories);
+router.post('/categories', listCategories);
+router.post('/categories/list', listCategories);
 
 // ==========================================
-// 10. USER MANAGEMENT & USER PORTAL (POST-first)
+// 10. USER MANAGEMENT & USER PORTAL
 // ==========================================
+router.get('/users', listUsers);
+router.post('/users', createUserHandler);
+router.put('/users/:id', updateUserHandler);
+router.delete('/users/:id', deleteUserHandler);
+// Backward compatibility aliases
 router.post('/users/list', listUsers);
 router.post('/users/create', createUserHandler);
 router.post('/users/update', updateUserHandler);
 router.post('/users/delete', deleteUserHandler);
+router.get('/users/my-projects', getMyProjectsHandler);
 router.post('/users/my-projects', getMyProjectsHandler);
 
 module.exports = router;

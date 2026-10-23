@@ -7,8 +7,9 @@ const { connectDB, sql } = require('../db');
 async function listActivity(req, res) {
   try {
     const pool = await connectDB();
-    const limit = parseInt(req.body.limit || '20', 10);
-    const projectId = req.body.project_id ? parseInt(req.body.project_id, 10) : null;
+    const limit = parseInt(req.query.limit || req.body?.limit || '20', 10);
+    const rawPid = req.query.project_id || req.body?.project_id;
+    const projectId = rawPid ? parseInt(rawPid, 10) : null;
 
     let query = `
       SELECT TOP (@limit) 

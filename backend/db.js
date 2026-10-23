@@ -31,6 +31,8 @@ if (!dbConfig.user || !dbConfig.password || !dbConfig.server) {
 
 let pool = null;
 let poolConnecting = null;
+let schemaReady = false;
+let schemaInitPromise = null;
 
 async function ensureDatabaseExists() {
   const masterConfig = {
@@ -54,7 +56,7 @@ async function ensureDatabaseExists() {
 }
 
 async function connectDB() {
-  if (pool && pool.connected) return pool;
+  if (pool && pool.connected && schemaReady) return pool;
   if (poolConnecting) return poolConnecting;
 
   poolConnecting = (async () => {
@@ -66,12 +68,13 @@ async function connectDB() {
       pool.on('error', err => {
         console.error('⚠️ SQL Pool connection event:', err.message);
         pool = null;
+        schemaReady = false;
       });
 
-      // Run table verification and initial seeding asynchronously in background
-      initSchemaAndSeed().catch(err => {
-        console.warn('Background schema check note:', err.message);
-      });
+      // Run table verification and seeding — AWAIT it so schema is guaranteed before first request
+      schemaInitPromise = initSchemaAndSeed();
+      await schemaInitPromise;
+      schemaReady = true;
 
       return pool;
     } catch (err) {
@@ -81,6 +84,7 @@ async function connectDB() {
         await ensureDatabaseExists();
         pool = await sql.connect(dbConfig);
         await initSchemaAndSeed();
+        schemaReady = true;
         return pool;
       }
       console.error('❌ SQL Server connection error:', err.message);

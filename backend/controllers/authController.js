@@ -28,14 +28,16 @@ async function login(req, res) {
     if (targetRole === 'admin') {
       const isAdmin = user.role === 'Admin' || (user.role && user.role.includes('Admin'));
       if (!isAdmin) {
-        return res.status(403).json({
+        return res.json({
+          success: false,
           error: 'Access denied: Regular users cannot sign in via the Administrator portal. Please use the Team Member tab.'
         });
       }
     } else if (targetRole === 'user') {
       const isAdmin = user.role === 'Admin' || (user.role && user.role.includes('Admin'));
       if (isAdmin) {
-        return res.status(403).json({
+        return res.json({
+          success: false,
           error: 'Access denied: Administrators cannot sign in via the Team Member portal. Please use the Administrator tab.'
         });
       }
@@ -43,13 +45,16 @@ async function login(req, res) {
 
     // 3. Return safe response (no sensitive data — token is a signed JWT)
     return res.json({
+      success: true,
       message: 'Login successful',
       token,
       user
     });
   } catch (err) {
-    // Mask internal errors — only return generic auth failure
-    return res.status(401).json({ error: err.message || 'Invalid login credentials!' });
+    return res.json({
+      success: false,
+      error: err.message || 'Invalid login credentials!'
+    });
   }
 }
 
@@ -67,7 +72,7 @@ async function verify(req, res) {
   }
 
   if (!token) {
-    return res.status(401).json({ valid: false, error: 'No active session token provided' });
+    return res.json({ valid: false, user: null, error: 'No active session token provided' });
   }
 
   try {
@@ -82,7 +87,7 @@ async function verify(req, res) {
       }
     });
   } catch (err) {
-    return res.status(401).json({ valid: false, error: 'Session expired or invalid' });
+    return res.json({ valid: false, user: null, error: 'Session expired or invalid' });
   }
 }
 

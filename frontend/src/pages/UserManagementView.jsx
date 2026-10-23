@@ -48,21 +48,52 @@ export default function UserManagementView({ refreshTrigger }) {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editModalError, setEditModalError] = useState('');
 
-  const loadUsers = async () => {
+  const loadUsers = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError('');
       const data = await api.getUsers();
       setUsers(data || []);
     } catch (err) {
       setError(err.message || 'Failed to load users');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadUsers();
+    let cancelled = false;
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const data = await api.getUsers();
+        if (!cancelled) {
+          setUsers(data || []);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          // Auto-retry once with a short delay on first mount failure
+          setTimeout(async () => {
+            if (cancelled) return;
+            try {
+              const retryData = await api.getUsers();
+              if (!cancelled) {
+                setUsers(retryData || []);
+                setError('');
+              }
+            } catch (retryErr) {
+              if (!cancelled) setError(retryErr.message || 'Failed to load users');
+            } finally {
+              if (!cancelled) setLoading(false);
+            }
+          }, 800);
+        }
+      }
+    };
+    fetchData();
+    return () => { cancelled = true; };
   }, [refreshTrigger]);
 
   // Handle Create User

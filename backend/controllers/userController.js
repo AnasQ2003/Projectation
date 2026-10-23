@@ -45,14 +45,15 @@ async function createUserHandler(req, res) {
   }
 }
 
-// POST /api/users/update (Admin only)
+// PUT /api/users/:id or POST /api/users/update
 async function updateUserHandler(req, res) {
-  const errors = validateUpdateUser(req.body);
+  const id = req.params.id || req.body.id;
+  const { id: _, ...updateData } = req.body;
+  const errors = validateUpdateUser({ id, ...updateData });
   if (errors.length > 0) {
     return res.status(400).json({ error: errors[0], errors });
   }
 
-  const { id, ...updateData } = req.body;
   try {
     const updated = await modifyUser(id, updateData);
     return res.json({
@@ -64,15 +65,16 @@ async function updateUserHandler(req, res) {
   }
 }
 
-// POST /api/users/delete (Admin only)
+// DELETE /api/users/:id or POST /api/users/delete
 async function deleteUserHandler(req, res) {
-  const errors = validateUserId(req.body);
+  const id = req.params.id || req.body.id;
+  const errors = validateUserId({ id });
   if (errors.length > 0) {
     return res.status(400).json({ error: errors[0], errors });
   }
 
   try {
-    await removeUser(req.body.id);
+    await removeUser(id);
     return res.json({ success: true, message: 'User removed successfully' });
   } catch (err) {
     return res.status(400).json({ error: err.message });
@@ -81,9 +83,9 @@ async function deleteUserHandler(req, res) {
 
 // POST /api/users/my-projects (For regular logged-in users)
 async function getMyProjectsHandler(req, res) {
-  const userName = req.body.userName || req.body.name || '';
-  const userEmail = req.body.userEmail || req.body.email || '';
-  const userUsername = req.body.username || req.body.userUsername || '';
+  const userName = req.query.userName || req.query.name || req.body?.userName || req.body?.name || '';
+  const userEmail = req.query.userEmail || req.query.email || req.body?.userEmail || req.body?.email || '';
+  const userUsername = req.query.username || req.query.userUsername || req.body?.username || req.body?.userUsername || '';
 
   if (!userName && !userEmail && !userUsername) {
     return res.status(400).json({ error: 'User identifier is required' });
