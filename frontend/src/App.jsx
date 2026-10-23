@@ -70,6 +70,9 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', 'light');
     localStorage.setItem('projectation_theme', 'light');
 
+    // Immediate backend handshake — always visible in DevTools Network tab on startup
+    api.ping().catch(() => {});
+
     // Background session verification — if token valid, refresh user
     const storedToken = localStorage.getItem('projectation_token');
     if (storedToken) {
@@ -100,7 +103,7 @@ export default function App() {
   // Close mobile sidebar on resize to desktop
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 768) setSidebarMobileOpen(false);
+      if (window.innerWidth > 640) setSidebarMobileOpen(false);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -159,7 +162,7 @@ export default function App() {
         />
 
         {/* View Router for sidebar options & Project Detail */}
-        <main style={{ flex: 1 }}>
+        <main style={{ flex: '1 1 auto' }}>
           {selectedProjectId ? (
             <ProjectDetail
               projectId={selectedProjectId}

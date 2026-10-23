@@ -20,7 +20,8 @@ export default function Navbar({
     <header
       className="navbar-inner"
       style={{
-        height: '60px',
+        height: '64px',
+        minHeight: '64px',
         padding: '0 1.5rem',
         display: 'flex',
         alignItems: 'center',
@@ -28,11 +29,10 @@ export default function Navbar({
         position: 'sticky',
         top: 0,
         zIndex: 40,
-        backgroundColor: 'var(--bg-surface)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
+        backgroundColor: '#ffffff',
         borderBottom: '1px solid var(--border-subtle)',
-        gap: '0.75rem'
+        gap: '0.75rem',
+        flexShrink: 0
       }}
     >
       {/* Mobile hamburger — only visible on small screens via CSS */}
@@ -59,8 +59,8 @@ export default function Navbar({
           className="form-input"
           style={{
             paddingLeft: '2.2rem',
-            height: '36px',
-            fontSize: '0.84rem',
+            height: '40px',
+            fontSize: '0.875rem',
             backgroundColor: 'var(--bg-app)',
             borderRadius: '8px',
             width: '100%'
@@ -77,7 +77,7 @@ export default function Navbar({
           <button 
             onClick={onOpenNewProject}
             className="btn-primary"
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+            style={{ padding: '0.55rem 1rem', fontSize: '0.875rem' }}
           >
             <Plus size={15} />
             <span className="navbar-btn-text">New Project</span>
@@ -93,12 +93,12 @@ export default function Navbar({
             display: 'flex',
             alignItems: 'center',
             gap: '0.35rem',
-            padding: '0.45rem 0.75rem',
+            padding: '0.55rem 0.85rem',
             borderRadius: '8px',
             backgroundColor: 'transparent',
             color: 'var(--text-muted)',
             border: '1px solid var(--border-subtle)',
-            fontSize: '0.825rem',
+            fontSize: '0.875rem',
             fontWeight: 500,
             flexShrink: 0
           }}

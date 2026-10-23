@@ -11,7 +11,7 @@ const {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Security & Cleanliness
+// Security headers
 app.disable('x-powered-by');
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -20,35 +20,38 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middlewares
+// CORS
 app.use(cors({
   origin: true,
   credentials: true,
   exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization']
 }));
+
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
+
+// Request logger
 app.use(safeLoggerMiddleware);
+
+// Decrypt incoming encrypted request bodies
 app.use(decryptPayloadMiddleware);
+
+// Encrypt all outgoing JSON responses — hides data in DevTools Network tab
 app.use(encryptResponseMiddleware);
 
-// Ensure SQL Server is connected on boot
+// Connect to SQL Server
 connectDB().catch(err => {
   console.error('Failed to initialize SQL Server on startup:', err.message);
 });
 
-// Mount All API Routes from routes.js
+// API routes
 app.use('/api', apiRoutes);
 
-// Root route
+// Root
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Projectation API Server running',
-    version: '2.0.0',
-    endpoints: '/api/*'
-  });
+  res.json({ message: 'Projectation API Server running', version: '2.0.0', endpoints: '/api/*' });
 });
 
-// Start Server
 app.listen(PORT, () => {
   console.log(`Projectation Backend server running on http://localhost:${PORT} (Connected to MS SQL Server)`);
 });

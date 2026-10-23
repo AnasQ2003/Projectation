@@ -114,27 +114,39 @@ function decryptTransportPayload(b64) {
  * Express middleware that automatically unpacks encrypted request bodies
  */
 function decryptPayloadMiddleware(req, res, next) {
-  if (req.headers['x-encrypted-transport'] === '1') {
-    req.isEncryptedClient = true;
-  }
-
-  if (req.body && (req.body._encrypted || req.body.encrypted) && req.body.payload) {
-    req.isEncryptedClient = true;
-    try {
-      req.body = decryptTransportPayload(req.body.payload);
-    } catch (e) {
-      return res.status(400).json({ error: 'Invalid encrypted payload' });
+  if (req.body && (req.body._enc || req.body._encrypted || req.body.encrypted)) {
+    const payload = req.body.data || req.body.payload;
+    if (payload) {
+      try {
+        req.body = decryptTransportPayload(payload);
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid encrypted payload' });
+      }
     }
   }
   next();
 }
 
 /**
- * Express middleware for high-performance direct JSON responses.
- * Sends clean, formatted JSON so browser DevTools (Headers, Payload, Preview, Response)
- * displays information instantaneously (< 5ms) without freezing or tokenizing giant base64 strings.
+ * Express middleware that automatically wraps JSON responses in transport encryption
+ * to shield data from DevTools Network inspection (Payload, Preview, and Response tabs).
  */
 function encryptResponseMiddleware(req, res, next) {
+  const originalJson = res.json.bind(res);
+
+  res.json = function(data) {
+    if (data !== undefined && data !== null) {
+      if (typeof data === 'object' && (data._enc || data._encrypted)) {
+        return originalJson(data);
+      }
+      return originalJson({
+        _enc: true,
+        data: encryptTransportPayload(data)
+      });
+    }
+    return originalJson(data);
+  };
+
   next();
 }
 

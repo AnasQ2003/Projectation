@@ -205,14 +205,14 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
           <span>Back to Projects</span>
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
           <button
             onClick={() => {
               setTaskModalDefaultStatus('todo');
               setShowTaskModal(true);
             }}
             className="btn-primary"
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
           >
             <Plus size={15} />
             <span>Add Task</span>
@@ -221,7 +221,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
           <button
             onClick={() => setShowMemberModal(true)}
             className="btn-secondary"
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
           >
             <UserPlus size={15} />
             <span>Add Member</span>
@@ -230,7 +230,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
           <button
             onClick={handleDeleteProject}
             className="btn-danger"
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem', whiteSpace: 'nowrap' }}
             title="Delete this project"
           >
             <Trash2 size={15} />
@@ -332,65 +332,107 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
           </div>
         </div>
 
-        {/* Project Key Metrics Row — read-only, single Edit Settings button */}
+        {/* Project Key Metrics Grid — Modern, fully responsive, glass-card elements */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '0',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gap: '0.75rem',
           marginTop: '1.25rem',
           paddingTop: '1.25rem',
-          borderTop: '1px solid var(--border-subtle)'
+          borderTop: '1px solid var(--border-subtle)',
+          alignItems: 'stretch'
         }}>
           {/* Sprint Completion */}
-          <div style={{ flex: '1 1 140px', padding: '0 1rem 0 0', borderRight: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.15rem' }}>Sprint Completion</span>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+          <div style={{
+            backgroundColor: 'var(--bg-subtle)',
+            padding: '0.75rem 0.9rem',
+            borderRadius: '10px',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', fontWeight: 600 }}>Sprint Completion</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', marginTop: '0.15rem' }}>
               <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>{progressPercent}%</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({completedTasksCount}/{tasks.length} tasks)</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({completedTasksCount}/{tasks.length})</span>
             </div>
           </div>
 
           {/* Allocated Budget */}
-          <div style={{ flex: '1 1 160px', padding: '0 1rem', borderRight: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.15rem' }}>Allocated Budget</span>
-            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
+          <div style={{
+            backgroundColor: 'var(--bg-subtle)',
+            padding: '0.75rem 0.9rem',
+            borderRadius: '10px',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', fontWeight: 600 }}>Allocated Budget</span>
+            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.15rem' }}>
               PKR {project.budget ? Number(project.budget).toLocaleString() : '—'}
             </span>
           </div>
 
           {/* Team Size */}
-          <div style={{ flex: '1 1 140px', padding: '0 1rem', borderRight: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.15rem' }}>Team Size</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div style={{
+            backgroundColor: 'var(--bg-subtle)',
+            padding: '0.75rem 0.9rem',
+            borderRadius: '10px',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', fontWeight: 600 }}>Team Size</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
               <Users size={15} color="var(--accent-primary)" />
               <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>{members.length} Members</span>
             </div>
           </div>
 
           {/* Priority Level */}
-          <div style={{ flex: '1 1 140px', padding: '0 1rem' }}>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', display: 'block', marginBottom: '0.15rem' }}>Priority Level</span>
-            <span style={{
-              fontSize: '0.825rem',
-              fontWeight: 700,
-              padding: '0.2rem 0.65rem',
-              borderRadius: '6px',
-              backgroundColor: project.priority === 'Urgent' ? 'var(--accent-danger-light)' : project.priority === 'High' ? 'rgba(251,191,36,0.15)' : 'var(--accent-primary-light)',
-              color: project.priority === 'Urgent' ? 'var(--accent-danger)' : project.priority === 'High' ? '#d97706' : 'var(--accent-primary)',
-              display: 'inline-block'
-            }}>
-              {project.priority} Priority
-            </span>
+          <div style={{
+            backgroundColor: 'var(--bg-subtle)',
+            padding: '0.75rem 0.9rem',
+            borderRadius: '10px',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'block', fontWeight: 600 }}>Priority Level</span>
+            <div style={{ marginTop: '0.15rem' }}>
+              <span style={{
+                fontSize: '0.775rem',
+                fontWeight: 700,
+                padding: '0.15rem 0.55rem',
+                borderRadius: '6px',
+                backgroundColor: project.priority === 'Urgent' ? 'var(--accent-danger-light)' : project.priority === 'High' ? 'rgba(251,191,36,0.15)' : 'var(--accent-primary-light)',
+                color: project.priority === 'Urgent' ? 'var(--accent-danger)' : project.priority === 'High' ? '#d97706' : 'var(--accent-primary)',
+                display: 'inline-block'
+              }}>
+                {project.priority} Priority
+              </span>
+            </div>
           </div>
 
           {/* Single Edit Settings Button */}
-          <div style={{ flexShrink: 0, marginLeft: 'auto', paddingLeft: '1rem' }}>
+          <div style={{
+            backgroundColor: 'var(--bg-subtle)',
+            padding: '0.75rem 0.9rem',
+            borderRadius: '10px',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
             <button
               type="button"
               onClick={handleOpenEditModal}
               className="btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '0.45rem 0.9rem' }}
+              style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', width: '100%', justifyContent: 'center' }}
             >
               <Edit3 size={14} />
               <span>Edit Settings</span>

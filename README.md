@@ -1,4 +1,4 @@
-# 🚀 PROJECTATION | Software House Project & Sprint Hub
+#  PROJECTATION | Software House Project & Sprint Hub
 
 A full-stack project management application with a **React.js** frontend, **Node.js (Express)** backend, and a **SQL (SQLite)** database.
 

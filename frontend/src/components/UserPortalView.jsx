@@ -72,12 +72,16 @@ export default function UserPortalView({ user, onLogout }) {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100%',
+      width: '100%',
+      overflowY: 'auto',
+      overflowX: 'hidden',
       backgroundColor: '#f8fafc',
       display: 'flex',
       flexDirection: 'column',
       color: '#0f172a',
-      fontFamily: 'var(--font-main)'
+      fontFamily: 'var(--font-main)',
+      WebkitOverflowScrolling: 'touch'
     }}>
       {/* ── Solid Top Header Bar (100% Opaque, No Content Bleed) ────────────── */}
       <header style={{

@@ -39,18 +39,16 @@ export default function Sidebar({
       className={`sidebar-responsive${mobileOpen ? ' open' : ''}`}
       style={{
         width: collapsed ? '72px' : '240px',
-        backgroundColor: 'var(--bg-surface)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
+        backgroundColor: '#ffffff',
         borderRight: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
+        height: '100%',
+        maxHeight: '100%',
         transition: 'width 0.2s ease',
         zIndex: 50,
-        flexShrink: 0
+        flexShrink: 0,
+        overflow: 'hidden'
       }}
     >
       {/* Brand Header */}
@@ -59,7 +57,8 @@ export default function Sidebar({
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: collapsed ? 'center' : 'space-between'
+        justifyContent: collapsed ? 'center' : 'space-between',
+        flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', overflow: 'hidden' }}>
           <div style={{
@@ -130,7 +129,7 @@ export default function Sidebar({
       </div>
 
       {/* Nav Menu */}
-      <div style={{ padding: '0.85rem 0.65rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <div style={{ padding: '0.85rem 0.65rem', flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto', minHeight: 0 }}>
         {!collapsed && (
           <div style={{
             fontSize: '0.675rem',
@@ -193,11 +192,12 @@ export default function Sidebar({
         })}
       </div>
 
-      {/* Admin Profile */}
+      {/* Admin Profile — locked at bottom of sidebar */}
       <div style={{
         padding: '0.85rem',
         borderTop: '1px solid var(--border-subtle)',
-        backgroundColor: 'var(--bg-subtle)'
+        backgroundColor: 'var(--bg-subtle)',
+        flexShrink: 0
       }}>
         <div style={{
           display: 'flex',

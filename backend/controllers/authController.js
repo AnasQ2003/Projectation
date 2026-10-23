@@ -3,11 +3,9 @@ const { loginUser, verifyToken } = require('../services/authService');
 const { decryptTransportPayload } = require('../utils/crypto');
 
 async function login(req, res) {
-  // Handle encrypted transport payload if not unpacked yet
-  if (req.body && (req.body._encrypted || req.body.encrypted) && req.body.payload) {
-    try {
-      req.body = decryptTransportPayload(req.body.payload);
-    } catch {
+  // Fallback: decrypt if middleware didn't unwrap it yet
+  if (req.body && (req.body._enc || req.body._encrypted || req.body.encrypted) && (req.body.data || req.body.payload)) {
+    try { req.body = decryptTransportPayload(req.body.data || req.body.payload); } catch {
       return res.status(400).json({ error: 'Malformed authentication payload' });
     }
   }

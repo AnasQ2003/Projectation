@@ -26,16 +26,14 @@ export default function UserManagementView({ refreshTrigger }) {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Search & Filter
+  // Search
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('ALL');
 
   // Register Form State
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState('User');
   const [newPassword, setNewPassword] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -131,7 +129,7 @@ export default function UserManagementView({ refreshTrigger }) {
         username: cleanUsername,
         name: cleanName,
         email: cleanEmail,
-        role: newRole,
+        role: 'User',
         password: newPassword
       });
       setSuccessMsg(`User account "${cleanName}" registered successfully!`);
@@ -194,7 +192,7 @@ export default function UserManagementView({ refreshTrigger }) {
       const payload = {
         id: editingUser.id,
         name: cleanName,
-        role: editRole,
+        role: 'User',
         email: cleanEmail
       };
       if (editPassword.trim()) {
@@ -232,26 +230,24 @@ export default function UserManagementView({ refreshTrigger }) {
     }
   };
 
-  // Filter Users
+  // Filter Users (Admin is completely excluded per user requirements)
   const filteredUsers = users.filter((u) => {
+    const isAdmin = u.role === 'Admin' || (u.role && u.role.includes('Admin')) || u.username === 'admin';
+    if (isAdmin) return false;
+
     const q = searchQuery.toLowerCase();
     const matchesSearch = q === '' ||
       (u.name && u.name.toLowerCase().includes(q)) ||
       (u.username && u.username.toLowerCase().includes(q)) ||
       (u.email && u.email.toLowerCase().includes(q));
 
-    const matchesRole = roleFilter === 'ALL' ||
-      (roleFilter === 'Admin' && (u.role === 'Admin' || (u.role && u.role.includes('Admin')))) ||
-      (roleFilter === 'User' && (u.role !== 'Admin' && (!u.role || !u.role.includes('Admin'))));
-
-    return matchesSearch && matchesRole;
+    return matchesSearch;
   });
 
-  const adminCount = users.filter(u => u.role === 'Admin' || (u.role && u.role.includes('Admin'))).length;
-  const regularCount = users.length - adminCount;
+  const teamMemberCount = users.filter(u => u.role !== 'Admin' && (!u.role || !u.role.includes('Admin')) && u.username !== 'admin').length;
 
   return (
-    <div className="animate-fade-in page-container" style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem' }}>
+    <div className="animate-fade-in page-container" style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem 6rem 2rem' }}>
       {/* Page Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
@@ -277,16 +273,6 @@ export default function UserManagementView({ refreshTrigger }) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <button
-            onClick={loadUsers}
-            className="btn-secondary"
-            style={{ padding: '0.5rem 0.75rem', fontSize: '0.825rem' }}
-            title="Refresh users"
-          >
-            <RefreshCw size={15} className={loading ? 'spin' : ''} />
-            <span>Refresh</span>
-          </button>
-
-          <button
             onClick={() => setShowCreateForm(prev => !prev)}
             className="btn-primary"
             style={{ padding: '0.5rem 0.95rem', fontSize: '0.825rem' }}
@@ -311,7 +297,7 @@ export default function UserManagementView({ refreshTrigger }) {
           gap: '0.6rem',
           fontSize: '0.85rem'
         }}>
-          <AlertCircle size={16} flexShrink={0} />
+          <AlertCircle size={16} style={{ flexShrink: 0 }} />
           <span>{error}</span>
         </div>
       )}
@@ -329,7 +315,7 @@ export default function UserManagementView({ refreshTrigger }) {
           gap: '0.6rem',
           fontSize: '0.85rem'
         }}>
-          <CheckCircle2 size={16} flexShrink={0} />
+          <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
           <span>{successMsg}</span>
         </div>
       )}
@@ -343,35 +329,35 @@ export default function UserManagementView({ refreshTrigger }) {
       }}>
         <div className="card" style={{ padding: '1.1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Total Registered</span>
+            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Registered Team Members</span>
             <Users size={18} color="var(--accent-primary)" />
           </div>
           <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.35rem' }}>
-            {users.length}
+            {teamMemberCount}
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Active database records</span>
         </div>
 
         <div className="card" style={{ padding: '1.1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Administrator</span>
+            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Portal Access Level</span>
             <ShieldCheck size={18} color="#16a34a" />
           </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#16a34a', marginTop: '0.35rem' }}>
-            {adminCount}
+          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#16a34a', marginTop: '0.65rem' }}>
+            Standard User
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Single Primary Admin</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Authorized for User Portal</span>
         </div>
 
         <div className="card" style={{ padding: '1.1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Team Users</span>
+            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Assigned System Role</span>
             <User size={18} color="#6366f1" />
           </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.35rem' }}>
-            {regularCount}
+          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.65rem' }}>
+            Team Member (User)
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Assigned workspace users</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Strict User permission scope</span>
         </div>
 
         <div className="card" style={{ padding: '1.1rem 1.25rem' }}>
@@ -457,16 +443,24 @@ export default function UserManagementView({ refreshTrigger }) {
 
               <div>
                 <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-main)' }}>
-                  Role *
+                  Assigned Role
                 </label>
-                <select
-                  className="form-input"
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
-                >
-                  <option value="User">Team Member (User)</option>
-                  <option value="Admin">Administrator</option>
-                </select>
+                <div style={{
+                  height: '38px',
+                  padding: '0 0.85rem',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-muted)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  color: 'var(--accent-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem'
+                }}>
+                  <User size={15} />
+                  <span>Team Member (User)</span>
+                </div>
               </div>
 
               <div style={{ gridColumn: '1 / -1' }}>
@@ -514,7 +508,7 @@ export default function UserManagementView({ refreshTrigger }) {
         flexWrap: 'wrap',
         gap: '0.75rem'
       }}>
-        <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
+        <div style={{ position: 'relative', width: '360px', maxWidth: '100%' }}>
           <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
           <input
             type="text"
@@ -527,17 +521,17 @@ export default function UserManagementView({ refreshTrigger }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Filter Role:</span>
-          <select
-            className="form-input"
-            style={{ width: '150px', height: '38px' }}
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-          >
-            <option value="ALL">All Roles ({users.length})</option>
-            <option value="Admin">Admin Only ({adminCount})</option>
-            <option value="User">Team Members ({regularCount})</option>
-          </select>
+          <span style={{
+            fontSize: '0.8rem',
+            color: 'var(--text-muted)',
+            fontWeight: 600,
+            backgroundColor: 'var(--bg-card)',
+            padding: '0.35rem 0.75rem',
+            borderRadius: '8px',
+            border: '1px solid var(--border-subtle)'
+          }}>
+            {filteredUsers.length} {filteredUsers.length === 1 ? 'Team Member' : 'Team Members'}
+          </span>
         </div>
       </div>
 
@@ -799,14 +793,22 @@ export default function UserManagementView({ refreshTrigger }) {
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.3rem' }}>
                       System Role
                     </label>
-                    <select
-                      className="form-input"
-                      value={editRole}
-                      onChange={(e) => setEditRole(e.target.value)}
-                    >
-                      <option value="User">Team Member (User)</option>
-                      <option value="Admin">Administrator</option>
-                    </select>
+                    <div style={{
+                      height: '38px',
+                      padding: '0 0.85rem',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--bg-muted)',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.84rem',
+                      fontWeight: 600,
+                      color: 'var(--accent-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.45rem'
+                    }}>
+                      <User size={15} />
+                      <span>Team Member (User)</span>
+                    </div>
                   </div>
 
                   <div>

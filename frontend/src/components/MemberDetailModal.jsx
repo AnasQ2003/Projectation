@@ -13,7 +13,8 @@ import {
   AlertCircle,
   Briefcase,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  Check
 } from 'lucide-react';
 import { api } from '../services/api';
 import { formatDate } from '../utils/dateUtils';
