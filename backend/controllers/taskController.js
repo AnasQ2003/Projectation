@@ -62,9 +62,9 @@ async function editTask(req, res) {
   }
 }
 
-// POST /api/tasks/status ({ id, status })
+// POST /api/tasks/status ({ id, status, progress_percent, progress_note, completed_at, updated_by })
 async function updateTaskStatus(req, res) {
-  const { id, status } = req.body;
+  const { id, status, progress_percent, progress_note, completed_at, updated_by } = req.body;
   if (!id || !status) {
     return res.status(400).json({ error: 'id and status are required' });
   }
@@ -75,7 +75,13 @@ async function updateTaskStatus(req, res) {
   }
 
   try {
-    const result = await updateTask(id, { status: status.toLowerCase() });
+    const result = await updateTask(id, {
+      status: status.toLowerCase(),
+      progress_percent,
+      progress_note,
+      completed_at,
+      updated_by
+    });
     return res.json({ success: true, updated: result });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to update task status' });

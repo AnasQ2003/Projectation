@@ -246,9 +246,18 @@ export const api = {
     const r = await request(`${API_BASE_URL}/tasks/${taskId}`, { method: 'PUT', body: { id: taskId, ...taskData } });
     invalidateCache('tasks', 'stats'); return r;
   },
-  async updateTaskStatus(taskId, status) {
-    const r = await request(`${API_BASE_URL}/tasks/status`, { method: 'POST', body: { id: taskId, status } });
-    invalidateCache('tasks', 'stats'); return r;
+  async updateTaskStatus(taskId, status, progress_percent, progress_note, updated_by) {
+    const r = await request(`${API_BASE_URL}/tasks/status`, {
+      method: 'POST',
+      body: {
+        id: taskId,
+        status,
+        progress_percent,
+        progress_note,
+        updated_by
+      }
+    });
+    invalidateCache('tasks', 'stats', 'activity', 'users'); return r;
   },
   async deleteTask(taskId) {
     const r = await request(`${API_BASE_URL}/tasks/${taskId}`, { method: 'DELETE' });
@@ -268,13 +277,32 @@ export const api = {
   },
 
   // ── 8. Notifications ──
-  async getNotifications() { return request(`${API_BASE_URL}/notifications`); },
+  async getNotifications(role = 'Admin', userName = '') {
+    const params = new URLSearchParams();
+    if (role) params.set('role', role);
+    if (userName) params.set('userName', userName);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return request(`${API_BASE_URL}/notifications${qs}`);
+  },
+  async markNotificationRead(id = null, all = false, role = 'Admin', userName = '') {
+    return request(`${API_BASE_URL}/notifications/read`, {
+      method: 'POST',
+      body: { id, all, role, userName }
+    });
+  },
+  async clearNotifications(role = 'Admin') {
+    return request(`${API_BASE_URL}/notifications/clear`, {
+      method: 'POST',
+      body: { role }
+    });
+  },
 
   // ── 9. Categories ──
   async getCategories() { return request(`${API_BASE_URL}/categories`); },
 
-  // ── 10. User Management ──
+  // ── 10. User Management & User Progress ──
   async getUsers() { return request(`${API_BASE_URL}/users`); },
+  async getUsersProgress() { return request(`${API_BASE_URL}/users/progress`); },
   async createUser(userData) {
     const r = await request(`${API_BASE_URL}/users`, { method: 'POST', body: userData });
     invalidateCache('users', 'names'); return r;

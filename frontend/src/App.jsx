@@ -122,7 +122,14 @@ export default function App() {
   // If user is a regular Team Member, show the dedicated User Portal View
   const isAdmin = user.role === 'Admin' || (user.role && user.role.includes('Admin'));
   if (!isAdmin) {
-    return <UserPortalView user={user} onLogout={handleLogout} />;
+    return (
+      <UserPortalView 
+        user={user} 
+        onLogout={handleLogout} 
+        refreshTrigger={refreshCount} 
+        onRefresh={triggerRefresh} 
+      />
+    );
   }
 
   return (
@@ -159,6 +166,8 @@ export default function App() {
           setSearchQuery={setSearchQuery}
           onOpenNewProject={() => setShowNewProjectModal(true)}
           onToggleSidebar={() => setSidebarMobileOpen(prev => !prev)}
+          onSelectProject={(id) => setSelectedProjectId(id)}
+          refreshTrigger={refreshCount}
         />
 
         {/* View Router for sidebar options & Project Detail */}

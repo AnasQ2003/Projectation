@@ -16,9 +16,17 @@ import {
   Sparkles,
   TrendingUp,
   Activity,
-  Layers
+  Layers,
+  Edit3,
+  Sliders,
+  X,
+  Award,
+  Check,
+  RotateCcw,
+  MessageSquare
 } from 'lucide-react';
 import { api } from '../services/api';
+import NotificationDropdown from './NotificationDropdown';
 
 /**
  * UserPortalView — Premium Glassmorphic Workspace for Registered Team Members
@@ -28,23 +36,42 @@ import { api } from '../services/api';
  *    1400px page-container grid with matching 1.5rem horizontal padding.
  * 2. Enterprise Glassmorphism: Inherits the application's native radial mesh gradient,
  *    frosted cards (.glass-card), and subtle translucent borders.
- * 3. Read-Only Safety: Enforces contributor role boundaries (hiding sensitive admin actions
- *    and other members' personal profiles).
+ * 3. Interactive Contributor Mode: Registered team members can update task status,
+ *    adjust progress percentage, log deliverables notes, and broadcast live notifications to Admin.
  * 4. Interactive Polish: Built-in workspace search, status filters, and task progression.
  */
 
-export default function UserPortalView({ user, onLogout }) {
+export default function UserPortalView({ user, onLogout, refreshTrigger, onRefresh }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
+  // Interactive Task Status & Progress Update State
+  const [editingTask, setEditingTask] = useState(null);
+  const [updateStatus, setUpdateStatus] = useState('todo');
+  const [updateProgress, setUpdateProgress] = useState(0);
+  const [updateNote, setUpdateNote] = useState('');
+  const [updateExpectedDate, setUpdateExpectedDate] = useState('');
+  const [savingProgress, setSavingProgress] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null); // { text, type: 'success'|'error' }
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   useEffect(() => {
     let isMounted = true;
     const fetchMyData = async () => {
       try {
-        setLoading(true);
+        if (projects.length === 0) {
+          setLoading(true);
+        }
         setError('');
         const myProjects = await api.getMyProjects(user.name, user.email || '', user.username || '');
         if (isMounted) {
@@ -63,7 +90,7 @@ export default function UserPortalView({ user, onLogout }) {
 
     fetchMyData();
     return () => { isMounted = false; };
-  }, [user]);
+  }, [user, refreshTrigger]);
 
   // Aggregate stats across all assigned projects
   const totalTasks = projects.reduce((acc, p) => acc + (p.myTasks ? p.myTasks.length : 0), 0);
@@ -98,6 +125,125 @@ export default function UserPortalView({ user, onLogout }) {
   }, [projects, searchQuery, statusFilter]);
 
   const completionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 100;
+
+  // Open modal to update task progress, status, and notes
+  const handleOpenEditTask = (task, project) => {
+    setEditingTask({
+      ...task,
+      projectId: project.id,
+      projectName: project.name,
+      projectCode: project.code
+    });
+    setUpdateStatus(task.status || 'todo');
+    setUpdateProgress(task.progress_percent !== undefined ? task.progress_percent : ((task.status || '').toLowerCase() === 'done' ? 100 : 0));
+    setUpdateNote(task.progress_note || '');
+    setUpdateExpectedDate(task.completed_at || task.due_date || '');
+  };
+
+  // Instant toggle done / in_progress on task checkbox
+  const handleQuickToggleDone = async (task, project) => {
+    const isCurrentlyDone = (task.status || '').toLowerCase() === 'done';
+    const newStatus = isCurrentlyDone ? 'in_progress' : 'done';
+    const newProgress = isCurrentlyDone ? 50 : 100;
+    const newCompletedAt = isCurrentlyDone ? null : new Date().toISOString().split('T')[0];
+
+    // Optimistic local state update
+    setProjects(prevProjects => {
+      return prevProjects.map(p => {
+        if (!p.myTasks) return p;
+        const updatedTasks = p.myTasks.map(t => {
+          if (t.id === task.id) {
+            return {
+              ...t,
+              status: newStatus,
+              progress_percent: newProgress,
+              completed_at: newCompletedAt
+            };
+          }
+          return t;
+        });
+        const doneCount = updatedTasks.filter(t => (t.status || '').toLowerCase() === 'done').length;
+        const newProjProgress = updatedTasks.length > 0 ? Math.round((doneCount / updatedTasks.length) * 100) : p.progress;
+        return {
+          ...p,
+          myTasks: updatedTasks,
+          progress: newProjProgress
+        };
+      });
+    });
+
+    try {
+      await api.updateTaskStatus(
+        task.id,
+        newStatus,
+        newProgress,
+        task.progress_note || '',
+        user.name || user.username
+      );
+      setToastMessage({ text: newStatus === 'done' ? `✓ Completed "${task.title}". Admin notified.` : `✓ Set "${task.title}" to In Progress.`, type: 'success' });
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error('Quick toggle error:', err);
+    }
+  };
+
+  // Save detailed task progress from modal
+  const handleSaveTaskProgress = async (e) => {
+    if (e) e.preventDefault();
+    if (!editingTask) return;
+    try {
+      setSavingProgress(true);
+      const statusVal = updateStatus.toLowerCase();
+      const progressVal = statusVal === 'done' ? 100 : updateProgress;
+      const noteVal = updateNote.trim();
+      const completedAtVal = statusVal === 'done' ? (editingTask.completed_at || new Date().toISOString().split('T')[0]) : null;
+
+      // Optimistic local state update
+      setProjects(prevProjects => {
+        return prevProjects.map(p => {
+          if (!p.myTasks) return p;
+          const updatedTasks = p.myTasks.map(t => {
+            if (t.id === editingTask.id) {
+              return {
+                ...t,
+                status: statusVal,
+                progress_percent: progressVal,
+                progress_note: noteVal,
+                completed_at: completedAtVal
+              };
+            }
+            return t;
+          });
+          const doneCount = updatedTasks.filter(t => (t.status || '').toLowerCase() === 'done').length;
+          const newProjProgress = updatedTasks.length > 0 ? Math.round((doneCount / updatedTasks.length) * 100) : p.progress;
+          return {
+            ...p,
+            myTasks: updatedTasks,
+            progress: newProjProgress
+          };
+        });
+      });
+
+      // Send to backend
+      await api.updateTaskStatus(
+        editingTask.id,
+        statusVal,
+        progressVal,
+        noteVal,
+        user.name || user.username,
+        statusVal === 'done' ? (updateExpectedDate || new Date().toISOString().split('T')[0]) : null
+      );
+
+      setToastMessage({ text: `✓ "${editingTask.title}" updated to ${statusVal.replace('_', ' ')} (${progressVal}%). Admin notified.`, type: 'success' });
+      setEditingTask(null);
+      setUpdateExpectedDate('');
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      setToastMessage({ text: 'Failed to update task: ' + (err.message || 'Unknown error'), type: 'error' });
+    } finally {
+      setSavingProgress(false);
+    }
+  };
 
   return (
     <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden' }}>
@@ -203,8 +349,16 @@ export default function UserPortalView({ user, onLogout }) {
             />
           </div>
 
-          {/* User Identity & Logout */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+          {/* User Identity, Live Notifications & Logout */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+            {/* Live Notification Bell & Dropdown */}
+            <NotificationDropdown 
+              user={user} 
+              refreshTrigger={refreshTrigger} 
+            />
+
+            <div style={{ height: '22px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
               <div
                 style={{
@@ -320,12 +474,12 @@ export default function UserPortalView({ user, onLogout }) {
                 border: '1px solid var(--border-subtle)',
                 fontSize: '0.8rem',
                 fontWeight: 600,
-                color: 'var(--text-muted)',
+                color: '#059669',
                 boxShadow: '0 2px 6px rgba(15, 23, 42, 0.03)'
               }}
             >
-              <Lock size={14} style={{ color: '#059669' }} />
-              <span>Read-Only Contributor View</span>
+              <Activity size={14} style={{ color: '#059669' }} />
+              <span>Interactive Contributor Mode</span>
             </div>
           </div>
 
@@ -371,7 +525,7 @@ export default function UserPortalView({ user, onLogout }) {
               </div>
             </div>
 
-            {/* Card 2: Upcoming Milestone */}
+            {/* Card 2: Upcoming Target Deadline */}
             <div
               className="glass-card stat-card-clickable"
               style={{
@@ -383,13 +537,13 @@ export default function UserPortalView({ user, onLogout }) {
             >
               <div>
                 <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Key Milestone
+                  Target Deadline
                 </span>
                 <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#dc2626', marginTop: '0.35rem', letterSpacing: '-0.02em' }}>
                   {nextDeadline}
                 </div>
                 <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 600 }}>
-                  Next target deadline
+                  Upcoming project deadline
                 </span>
               </div>
               <div
@@ -745,7 +899,7 @@ export default function UserPortalView({ user, onLogout }) {
                         </div>
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            Milestone Deadline
+                            Target Deadline
                           </div>
                           <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#dc2626' }}>
                             {proj.deadline ? proj.deadline : 'Continuous Sprint'}
@@ -787,8 +941,9 @@ export default function UserPortalView({ user, onLogout }) {
                           <CheckSquare size={16} style={{ color: '#059669' }} />
                           <span>My Assigned Tasks ({proj.myTasks?.length || 0})</span>
                         </div>
-                        <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 600 }}>
-                          Read-Only View
+                        <span style={{ fontSize: '0.725rem', color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle2 size={12} />
+                          <span>Live Progress Sync</span>
                         </span>
                       </div>
 
@@ -807,77 +962,191 @@ export default function UserPortalView({ user, onLogout }) {
                           No specific individual tasks currently assigned to you in this workspace.
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                           {proj.myTasks.map((task) => {
                             const isDone = (task.status || '').toLowerCase() === 'done';
                             const isInProgress = (task.status || '').toLowerCase() === 'in_progress';
+                            const isReview = (task.status || '').toLowerCase() === 'review';
 
                             return (
                               <div
                                 key={task.id}
                                 style={{
                                   display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  padding: '0.75rem 1rem',
-                                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                  border: '1px solid var(--border-subtle)',
-                                  borderRadius: '10px',
+                                  flexDirection: 'column',
+                                  gap: '0.65rem',
+                                  padding: '0.85rem 1.15rem',
+                                  backgroundColor: isDone ? 'rgba(240, 253, 244, 0.65)' : 'rgba(255, 255, 255, 0.95)',
+                                  border: `1px solid ${isDone ? 'rgba(16, 185, 129, 0.25)' : 'var(--border-subtle)'}`,
+                                  borderRadius: '12px',
                                   boxShadow: '0 1px 3px rgba(15, 23, 42, 0.02)',
                                   transition: 'all 0.15s ease'
                                 }}
                               >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                  <div
-                                    style={{
-                                      width: '22px',
-                                      height: '22px',
-                                      borderRadius: '50%',
-                                      backgroundColor: isDone ? 'rgba(16, 185, 129, 0.15)' : isInProgress ? 'rgba(37, 99, 235, 0.12)' : 'rgba(241, 245, 249, 0.9)',
-                                      color: isDone ? '#059669' : isInProgress ? '#2563eb' : 'var(--text-dim)',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      flexShrink: 0
-                                    }}
-                                  >
-                                    {isDone ? <CheckCircle2 size={15} /> : <CircleDot size={13} />}
+                                {/* Task Header Row */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '220px' }}>
+                                    {/* Quick Checkbox / Complete Toggle */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickToggleDone(task, proj)}
+                                      title={isDone ? "Click to set back to in progress" : "Click to mark as done"}
+                                      style={{
+                                        width: '26px',
+                                        height: '26px',
+                                        borderRadius: '50%',
+                                        backgroundColor: isDone ? '#059669' : isInProgress ? 'rgba(37, 99, 235, 0.12)' : 'rgba(241, 245, 249, 0.9)',
+                                        color: isDone ? '#ffffff' : isInProgress ? '#2563eb' : 'var(--text-dim)',
+                                        border: `1px solid ${isDone ? '#059669' : 'var(--border-subtle)'}`,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      {isDone ? <Check size={14} strokeWidth={3} /> : <CircleDot size={13} />}
+                                    </button>
+
+                                    <div style={{ flex: 1 }}>
+                                      <span
+                                        style={{
+                                          fontSize: '0.9rem',
+                                          fontWeight: 700,
+                                          color: 'var(--text-main)',
+                                          textDecoration: isDone ? 'line-through' : 'none',
+                                          opacity: isDone ? 0.75 : 1
+                                        }}
+                                      >
+                                        {task.title}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <span
-                                    style={{
-                                      fontSize: '0.875rem',
-                                      fontWeight: 600,
-                                      color: 'var(--text-main)',
-                                      textDecoration: isDone ? 'line-through' : 'none',
-                                      opacity: isDone ? 0.7 : 1
-                                    }}
-                                  >
-                                    {task.title}
-                                  </span>
+
+                                  {/* Right Action: Update Progress Button */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditTask(task, proj)}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem',
+                                        padding: '4px 10px',
+                                        borderRadius: '7px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        backgroundColor: 'var(--accent-primary-light)',
+                                        color: 'var(--accent-primary)',
+                                        border: '1px solid var(--accent-primary-border)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.12s ease'
+                                      }}
+                                      title="Update task status, progress % and progress notes"
+                                    >
+                                      <Sliders size={13} />
+                                      <span>Update Status & Progress</span>
+                                    </button>
+                                  </div>
                                 </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                  {task.due_date && (
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                      <Clock size={12} />
-                                      <span>Due: {task.due_date}</span>
+                                {/* Task Detail & Progress Strip */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: '0.65rem',
+                                    paddingTop: '0.5rem',
+                                    borderTop: '1px solid rgba(241, 245, 249, 0.85)',
+                                    fontSize: '0.75rem'
+                                  }}
+                                >
+                                  {/* Status & Progress % */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                                    <span
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        fontWeight: 750,
+                                        padding: '2px 8px',
+                                        borderRadius: '6px',
+                                        textTransform: 'uppercase',
+                                        backgroundColor: isDone 
+                                          ? 'rgba(16, 185, 129, 0.15)' 
+                                          : isInProgress 
+                                          ? 'rgba(37, 99, 235, 0.12)' 
+                                          : isReview 
+                                          ? 'rgba(217, 119, 6, 0.12)' 
+                                          : 'rgba(241, 245, 249, 0.85)',
+                                        color: isDone 
+                                          ? '#059669' 
+                                          : isInProgress 
+                                          ? '#2563eb' 
+                                          : isReview 
+                                          ? '#d97706' 
+                                          : 'var(--text-dim)',
+                                        border: `1px solid ${isDone ? 'rgba(16, 185, 129, 0.28)' : isInProgress ? 'rgba(37, 99, 235, 0.28)' : 'var(--border-subtle)'}`
+                                      }}
+                                    >
+                                      {task.status ? task.status.replace('_', ' ') : 'todo'}
                                     </span>
-                                  )}
 
-                                  <span
-                                    style={{
-                                      fontSize: '0.7rem',
-                                      fontWeight: 700,
-                                      padding: '2px 8px',
-                                      borderRadius: '6px',
-                                      textTransform: 'uppercase',
-                                      backgroundColor: isDone ? 'rgba(16, 185, 129, 0.12)' : isInProgress ? 'rgba(37, 99, 235, 0.1)' : 'rgba(241, 245, 249, 0.8)',
-                                      color: isDone ? '#059669' : isInProgress ? '#2563eb' : 'var(--text-muted)',
-                                      border: `1px solid ${isDone ? 'rgba(16, 185, 129, 0.25)' : isInProgress ? 'rgba(37, 99, 235, 0.25)' : 'var(--border-subtle)'}`
-                                    }}
-                                  >
-                                    {task.status ? task.status.replace('_', ' ') : 'todo'}
-                                  </span>
+                                    {/* Progress numeric & miniature bar */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                      <div style={{ width: '60px', height: '5px', backgroundColor: 'rgba(226, 232, 240, 0.8)', borderRadius: '999px', overflow: 'hidden' }}>
+                                        <div
+                                          style={{
+                                            width: `${isDone ? 100 : task.progress_percent || 0}%`,
+                                            height: '100%',
+                                            backgroundColor: isDone ? '#059669' : '#2563eb',
+                                            borderRadius: '999px'
+                                          }}
+                                        />
+                                      </div>
+                                      <span style={{ fontSize: '0.725rem', fontWeight: 700, color: isDone ? '#059669' : 'var(--text-muted)' }}>
+                                        {isDone ? 100 : task.progress_percent || 0}%
+                                      </span>
+                                    </div>
+
+                                    {/* User progress note */}
+                                    {task.progress_note && (
+                                      <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.75rem' }}>
+                                        "{task.progress_note}"
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Deadlines & Completion Verification */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                                    {task.due_date && (
+                                      <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                        <Clock size={12} style={{ color: 'var(--text-dim)' }} />
+                                        <span>Due: {task.due_date}</span>
+                                      </span>
+                                    )}
+
+                                    {isDone && (
+                                      <span
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '0.25rem',
+                                          padding: '2px 8px',
+                                          borderRadius: '6px',
+                                          fontSize: '0.7rem',
+                                          fontWeight: 700,
+                                          backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                          color: '#059669',
+                                          border: '1px solid rgba(16, 185, 129, 0.25)'
+                                        }}
+                                      >
+                                        <Award size={12} />
+                                        <span>Completed: {task.completed_at || 'Done'}</span>
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -892,6 +1161,319 @@ export default function UserPortalView({ user, onLogout }) {
           </div>
         </div>
       </div>
+
+      {/* ── Interactive Modal: Update Task Status & Progress ── */}
+      {editingTask && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}
+          onClick={() => setEditingTask(null)}
+        >
+          <div
+            className="glass-card animate-scale-in"
+            style={{
+              width: '520px',
+              maxWidth: '100%',
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid var(--border-subtle)',
+              boxShadow: '0 20px 50px rgba(15, 23, 42, 0.18)',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '1.25rem 1.5rem',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                backgroundColor: 'rgba(248, 250, 252, 0.85)'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.25rem' }}>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--accent-primary-light)',
+                      color: 'var(--accent-primary)',
+                      fontFamily: 'var(--font-mono)'
+                    }}
+                  >
+                    {editingTask.projectCode}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {editingTask.projectName}
+                  </span>
+                </div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+                  Update Task Progress
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditingTask(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-dim)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '6px'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveTaskProgress} style={{ padding: '1.5rem' }}>
+              {/* Task Title banner */}
+              <div
+                style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(241, 245, 249, 0.7)',
+                  border: '1px solid var(--border-subtle)',
+                  marginBottom: '1.25rem'
+                }}
+              >
+                <div style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                  Deliverable Title
+                </div>
+                <div style={{ fontSize: '0.925rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                  {editingTask.title}
+                </div>
+                {editingTask.due_date && (
+                  <div style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 600, marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Clock size={12} />
+                    <span>Scheduled Deadline: {editingTask.due_date}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Status Selector */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                  Current Task Status
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+                  {[
+                    { id: 'todo', label: 'To Do', color: '#64748b' },
+                    { id: 'in_progress', label: 'In Progress', color: '#2563eb' },
+                    { id: 'review', label: 'Review', color: '#d97706' },
+                    { id: 'done', label: 'Completed', color: '#059669' }
+                  ].map(st => {
+                    const isSelected = updateStatus === st.id;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => {
+                          setUpdateStatus(st.id);
+                          if (st.id === 'done') setUpdateProgress(100);
+                          if (st.id === 'todo' && updateProgress === 100) setUpdateProgress(0);
+                        }}
+                        style={{
+                          padding: '0.65rem 0.5rem',
+                          borderRadius: '8px',
+                          border: isSelected ? `2px solid ${st.color}` : '1px solid var(--border-subtle)',
+                          backgroundColor: isSelected ? `${st.color}15` : 'var(--bg-app)',
+                          color: isSelected ? st.color : 'var(--text-muted)',
+                          fontSize: '0.775rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {st.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Progress Slider (0 - 100%) */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    Progress Percentage
+                  </label>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: updateStatus === 'done' || updateProgress === 100 ? '#059669' : '#2563eb' }}>
+                    {updateStatus === 'done' ? 100 : updateProgress}%
+                  </span>
+                </div>
+
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={updateStatus === 'done' ? 100 : updateProgress}
+                  disabled={updateStatus === 'done'}
+                  onChange={(e) => setUpdateProgress(parseInt(e.target.value))}
+                  style={{
+                    width: '100%',
+                    accentColor: '#2563eb',
+                    cursor: updateStatus === 'done' ? 'not-allowed' : 'pointer'
+                  }}
+                />
+
+                {/* Quick preset buttons */}
+                {updateStatus !== 'done' && (
+                  <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.5rem' }}>
+                    {[0, 25, 50, 75, 100].map(pct => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => {
+                          setUpdateProgress(pct);
+                          if (pct === 100) setUpdateStatus('done');
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '3px 0',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: updateProgress === pct ? 'var(--accent-primary-light)' : 'transparent',
+                          color: updateProgress === pct ? 'var(--accent-primary)' : 'var(--text-dim)',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Expected / Actual Completion Date */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+                  {updateStatus === 'done' ? 'Actual Completion Date' : 'Target / Scheduled Delivery Date'}
+                </label>
+                <input
+                  type="date"
+                  value={updateExpectedDate}
+                  onChange={(e) => setUpdateExpectedDate(e.target.value)}
+                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '8px',
+                    fontSize: '0.825rem',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-app)',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Progress Notes */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+                  Deliverable Notes / Status Comment (Optional)
+                </label>
+                <textarea
+                  rows="3"
+                  value={updateNote}
+                  onChange={(e) => setUpdateNote(e.target.value)}
+                  placeholder="e.g. Authentication endpoints wired up, written unit tests, waiting on PR review..."
+                  className="form-input"
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '8px',
+                    fontSize: '0.825rem',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-app)',
+                    boxSizing: 'border-box',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              {/* Actions Footer */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingTask(null)}
+                  className="btn-secondary"
+                  style={{ padding: '0.55rem 1.15rem', fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={savingProgress}
+                  className="btn-primary"
+                  style={{ padding: '0.55rem 1.25rem', fontSize: '0.85rem' }}
+                >
+                  {savingProgress ? 'Syncing...' : 'Save & Notify Admin'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Floating Toast Notification ── */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '0.85rem 1.25rem',
+            borderRadius: '12px',
+            backgroundColor: toastMessage.type === 'error' ? '#ef4444' : '#0f172a',
+            color: '#ffffff',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25)',
+            fontSize: '0.875rem',
+            fontWeight: 600
+          }}
+        >
+          <span>{typeof toastMessage === 'object' ? toastMessage.text : toastMessage}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.7)',
+              cursor: 'pointer',
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

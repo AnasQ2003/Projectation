@@ -10,14 +10,15 @@ const { listProjects, getProject, addProject, editProject, removeProjectHandler 
 const { listMembers, createMember, editMemberHandler, removeMemberHandler } = require('./controllers/memberController');
 const { listTasks, addTask, editTask, updateTaskStatus, removeTaskHandler } = require('./controllers/taskController');
 const { listActivity, logActivity } = require('./controllers/activityController');
-const { listNotifications } = require('./controllers/notificationController');
+const { listNotifications, markNotificationRead, clearNotifications } = require('./controllers/notificationController');
 const { listCategories } = require('./controllers/categoryController');
 const {
   listUsers,
   createUserHandler,
   updateUserHandler,
   deleteUserHandler,
-  getMyProjectsHandler
+  getMyProjectsHandler,
+  getUsersProgressHandler
 } = require('./controllers/userController');
 
 // ==========================================
@@ -104,6 +105,8 @@ router.post('/activity/log', logActivity);
 // ==========================================
 router.get('/notifications', listNotifications);
 router.post('/notifications', listNotifications);
+router.post('/notifications/read', markNotificationRead);
+router.post('/notifications/clear', clearNotifications);
 
 // ==========================================
 // 9. CATEGORIES
@@ -126,5 +129,7 @@ router.post('/users/update', updateUserHandler);
 router.post('/users/delete', deleteUserHandler);
 router.get('/users/my-projects', getMyProjectsHandler);
 router.post('/users/my-projects', getMyProjectsHandler);
+router.get('/users/progress', getUsersProgressHandler);
+router.post('/users/progress', getUsersProgressHandler);
 
 module.exports = router;

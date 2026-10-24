@@ -191,6 +191,67 @@ async function initSchemaAndSeed() {
       END
     `);
 
+    // Ensure Tasks table has completed_at, progress_percent, progress_note, updated_by columns
+    await req.query(`
+      IF COL_LENGTH('Tasks', 'completed_at') IS NULL
+      BEGIN
+        ALTER TABLE Tasks ADD completed_at NVARCHAR(50);
+      END
+      IF COL_LENGTH('Tasks', 'progress_percent') IS NULL
+      BEGIN
+        ALTER TABLE Tasks ADD progress_percent INT DEFAULT 0;
+      END
+      IF COL_LENGTH('Tasks', 'progress_note') IS NULL
+      BEGIN
+        ALTER TABLE Tasks ADD progress_note NVARCHAR(MAX);
+      END
+      IF COL_LENGTH('Tasks', 'updated_by') IS NULL
+      BEGIN
+        ALTER TABLE Tasks ADD updated_by NVARCHAR(100);
+      END
+    `);
+
+    // 6. Notifications Table
+    await req.query(`
+      IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Notifications')
+      BEGIN
+        CREATE TABLE Notifications (
+          id INT IDENTITY(1,1) PRIMARY KEY,
+          target_role NVARCHAR(50) DEFAULT 'All',
+          target_user NVARCHAR(100) NULL,
+          type NVARCHAR(50) NOT NULL,
+          title NVARCHAR(255) NOT NULL,
+          message NVARCHAR(MAX) NOT NULL,
+          priority NVARCHAR(50) DEFAULT 'Medium',
+          link_id INT NULL,
+          is_read BIT DEFAULT 0,
+          created_at DATETIME DEFAULT GETDATE()
+        );
+      END
+    `);
+
+    // Backfill completed_at for existing done tasks if missing
+    await req.query(`
+      UPDATE Tasks
+      SET completed_at = due_date,
+          progress_percent = 100
+      WHERE LOWER(status) = 'done' AND (completed_at IS NULL OR completed_at = '');
+    `);
+
+    // Seed initial notifications if Notifications table is empty
+    const notifCheck = await pool.request().query("SELECT COUNT(*) AS count FROM Notifications");
+    if (notifCheck.recordset[0].count === 0) {
+      await pool.request().query(`
+        INSERT INTO Notifications (target_role, target_user, type, title, message, priority, is_read, created_at)
+        VALUES 
+        ('Admin', NULL, 'task_completed', 'Task Completed On Time', 'Sarah Chen completed "Architect OAuth2 & Biometric token refresh flow" ahead of schedule', 'High', 0, DATEADD(hour, -2, GETDATE())),
+        ('Admin', NULL, 'task_status', 'Task Progress Updated', 'David Kim updated "Integrate payment webhooks" to In Progress (65% completed)', 'Medium', 0, DATEADD(hour, -4, GETDATE())),
+        ('User', 'sarah', 'assignment', 'Sprint Milestone Active', 'Your tasks in "Apex Fintech Mobile Banking App" are currently on track for sprint review', 'Medium', 0, DATEADD(hour, -1, GETDATE())),
+        ('User', 'david', 'deadline', 'Upcoming Task Deadline', 'Task "Integrate payment webhooks" due tomorrow', 'High', 0, DATEADD(hour, -3, GETDATE())),
+        ('All', NULL, 'info', 'Workspace System Active', 'Real-time task tracking and progress reporting enabled across all project dashboards', 'Low', 0, DATEADD(hour, -5, GETDATE()));
+      `);
+    }
+
     // Ensure only ONE primary Administrator account exists: username 'admin', name 'Admin'
     await pool.request().query("DELETE FROM Users WHERE LOWER(username) = 'anas'");
     const adminCheck = await pool.request().query("SELECT * FROM Users WHERE LOWER(username) = 'admin'");

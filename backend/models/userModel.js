@@ -187,7 +187,11 @@ async function getUserAssignedProjects(userName, userEmail, userUsername = '') {
         description, 
         status, 
         priority, 
-        due_date
+        due_date,
+        completed_at,
+        progress_percent,
+        progress_note,
+        updated_by
       FROM Tasks
       WHERE LOWER(assignee) = LOWER(@userName) OR (LOWER(assignee) = LOWER(@userUsername) AND @userUsername != '')
       ORDER BY id DESC;
@@ -220,6 +224,108 @@ async function getUserAssignedProjects(userName, userEmail, userUsername = '') {
   return projects;
 }
 
+/**
+ * Retrieve comprehensive user progress report for Admin Dashboard
+ * Returns each user's assigned tasks, completion rate, deadline comparisons, and active tasks.
+ */
+async function getAllUsersProgress() {
+  const pool = await connectDB();
+
+  // 1. Fetch all registered users
+  const usersRes = await pool.request().query(`
+    SELECT id, username, name, email, role 
+    FROM Users 
+    WHERE LOWER(role) != 'admin'
+    ORDER BY name ASC
+  `);
+  const users = usersRes.recordset || [];
+
+  // 2. Fetch all tasks with project info
+  const tasksRes = await pool.request().query(`
+    SELECT 
+      t.id, 
+      t.project_id, 
+      p.name AS project_name,
+      p.code AS project_code,
+      t.title, 
+      t.description, 
+      t.status, 
+      t.priority, 
+      t.assignee, 
+      t.due_date, 
+      t.completed_at, 
+      t.progress_percent, 
+      t.progress_note,
+      t.updated_by
+    FROM Tasks t
+    LEFT JOIN Projects p ON p.id = t.project_id
+    ORDER BY t.id DESC
+  `);
+  const allTasks = tasksRes.recordset || [];
+
+  // Helper to calculate days diff
+  const calcTiming = (completedAt, dueDate) => {
+    if (!completedAt || !dueDate) {
+      return { on_time: true, timing_label: completedAt ? `Completed on ${completedAt}` : 'Completed' };
+    }
+    const cDate = new Date(completedAt.split('T')[0]);
+    const dDate = new Date(dueDate.split('T')[0]);
+    if (isNaN(cDate.getTime()) || isNaN(dDate.getTime())) {
+      return { on_time: true, timing_label: `Completed on ${completedAt}` };
+    }
+    const diffTime = cDate.getTime() - dDate.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+    if (diffDays < 0) {
+      return { on_time: true, days_diff: diffDays, timing_label: `Completed ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'} early` };
+    } else if (diffDays === 0) {
+      return { on_time: true, days_diff: 0, timing_label: 'Completed on deadline day' };
+    } else {
+      return { on_time: false, days_diff: diffDays, timing_label: `Completed ${diffDays} day${diffDays === 1 ? '' : 's'} after deadline` };
+    }
+  };
+
+  const userProgressList = users.map(user => {
+    const userTasks = allTasks.filter(t => {
+      const a = (t.assignee || '').toLowerCase().trim();
+      const n = (user.name || '').toLowerCase().trim();
+      const u = (user.username || '').toLowerCase().trim();
+      return a === n || a === u || (n.length > 0 && a.includes(n));
+    });
+
+    const total = userTasks.length;
+    const completedTasks = userTasks.filter(t => (t.status || '').toLowerCase() === 'done');
+    const inProgressTasks = userTasks.filter(t => ['in_progress', 'review'].includes((t.status || '').toLowerCase()));
+    const todoTasks = userTasks.filter(t => (t.status || '').toLowerCase() === 'todo');
+    const completionRate = total > 0 ? Math.round((completedTasks.length / total) * 100) : 0;
+
+    const completedWithTiming = completedTasks.map(t => {
+      const timing = calcTiming(t.completed_at, t.due_date);
+      return {
+        ...t,
+        ...timing
+      };
+    });
+
+    return {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      total_tasks: total,
+      completed_count: completedTasks.length,
+      in_progress_count: inProgressTasks.length,
+      todo_count: todoTasks.length,
+      completion_rate: completionRate,
+      tasks: userTasks,
+      completed_tasks: completedWithTiming,
+      active_tasks: inProgressTasks.concat(todoTasks)
+    };
+  });
+
+  return userProgressList;
+}
+
 module.exports = {
   findUserByUsername,
   findUserByName,
@@ -229,5 +335,6 @@ module.exports = {
   createUser,
   updateUser,
   deleteUser,
-  getUserAssignedProjects
+  getUserAssignedProjects,
+  getAllUsersProgress
 };

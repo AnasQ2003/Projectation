@@ -6,6 +6,7 @@ import {
   Menu,
   Users
 } from 'lucide-react';
+import NotificationDropdown from './NotificationDropdown';
 
 export default function Navbar({ 
   onLogout, 
@@ -14,7 +15,9 @@ export default function Navbar({
   setSearchQuery,
   onOpenNewProject,
   onOpenUserManager,
-  onToggleSidebar
+  onToggleSidebar,
+  onSelectProject,
+  refreshTrigger
 }) {
   return (
     <header
@@ -84,7 +87,12 @@ export default function Navbar({
           </button>
         )}
 
-
+        {/* Live Notification Bell & Dropdown */}
+        <NotificationDropdown 
+          user={user} 
+          onSelectProject={onSelectProject} 
+          refreshTrigger={refreshTrigger} 
+        />
 
         {/* Logout Button */}
         <button

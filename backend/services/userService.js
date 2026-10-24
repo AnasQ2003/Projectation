@@ -8,7 +8,8 @@ const {
   createUser,
   updateUser,
   deleteUser,
-  getUserAssignedProjects
+  getUserAssignedProjects,
+  getAllUsersProgress
 } = require('../models/userModel');
 
 /**
@@ -124,11 +125,16 @@ async function fetchMyProjects(userName, userEmail, userUsername) {
   return getUserAssignedProjects(userName, userEmail, userUsername);
 }
 
+async function fetchUsersProgress() {
+  return getAllUsersProgress();
+}
+
 module.exports = {
   listAllUsers,
   getUserDetails,
   createNewUser,
   modifyUser,
   removeUser,
-  fetchMyProjects
+  fetchMyProjects,
+  fetchUsersProgress
 };

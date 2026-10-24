@@ -36,6 +36,13 @@ function validateUpdateTask(body) {
     errors.push(`Priority must be one of: ${allowedPriorities.join(', ')}`);
   }
 
+  if (body.progress_percent !== undefined) {
+    const p = parseInt(body.progress_percent);
+    if (isNaN(p) || p < 0 || p > 100) {
+      errors.push('Progress percentage must be between 0 and 100');
+    }
+  }
+
   return errors;
 }
 

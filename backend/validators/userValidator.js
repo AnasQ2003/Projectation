@@ -1,5 +1,3 @@
-
-
 function validateCreateUser(data) {
   const errors = [];
   if (!data.username || typeof data.username !== 'string' || data.username.trim().length < 3) {

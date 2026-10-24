@@ -16,6 +16,7 @@ import { api } from '../services/api';
 import ProjectCard from '../components/ProjectCard';
 import NewProjectModal from '../components/NewProjectModal';
 import CategoryManagerModal, { getStoredCategories, saveStoredCategories } from '../components/CategoryManagerModal';
+import UserProgressTracker from '../components/UserProgressTracker';
 import { getDeadlineInfo } from '../utils/dateUtils';
 
 export default function Dashboard({ 
@@ -31,6 +32,7 @@ export default function Dashboard({
   const [projects, setProjects] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeSection, setActiveSection] = useState('projects'); // 'projects' | 'user_progress'
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedUrgency, setSelectedUrgency] = useState('ALL');
   const [categories, setCategories] = useState(() => getStoredCategories());
@@ -117,20 +119,73 @@ export default function Dashboard({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              Projects Overview
+              {activeSection === 'projects' ? 'Projects Overview' : 'Team Progress & Deliverables Tracker'}
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              Monitor your software sprints, team velocity, and client deadlines
+              {activeSection === 'projects' 
+                ? 'Monitor your software sprints, team velocity, and client deadlines'
+                : 'Real-time overview of registered users, active deliverables, and deadline completion audit'}
             </p>
           </div>
 
-          <button
-            onClick={() => setShowNewProjectModal(true)}
-            className="btn-primary"
-          >
-            <Plus size={16} />
-            <span>Create Project</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            {/* View Mode Switcher Pills */}
+            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-muted)', padding: '3px', borderRadius: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setActiveSection('projects')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '6px 12px',
+                  borderRadius: '7px',
+                  fontSize: '0.8rem',
+                  fontWeight: activeSection === 'projects' ? 700 : 500,
+                  backgroundColor: activeSection === 'projects' ? '#ffffff' : 'transparent',
+                  color: activeSection === 'projects' ? 'var(--text-main)' : 'var(--text-muted)',
+                  border: 'none',
+                  boxShadow: activeSection === 'projects' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <FolderKanban size={14} />
+                <span>Workspaces ({projects.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveSection('user_progress')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '6px 12px',
+                  borderRadius: '7px',
+                  fontSize: '0.8rem',
+                  fontWeight: activeSection === 'user_progress' ? 700 : 500,
+                  backgroundColor: activeSection === 'user_progress' ? '#ffffff' : 'transparent',
+                  color: activeSection === 'user_progress' ? 'var(--accent-primary)' : 'var(--text-muted)',
+                  border: 'none',
+                  boxShadow: activeSection === 'user_progress' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <Users size={14} />
+                <span>Team Progress & Deadlines</span>
+              </button>
+            </div>
+
+            {activeSection === 'projects' && (
+              <button
+                onClick={() => setShowNewProjectModal(true)}
+                className="btn-primary"
+              >
+                <Plus size={16} />
+                <span>Create Project</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 4 Clickable Glassmorphism Metric Cards */}
@@ -228,14 +283,16 @@ export default function Dashboard({
           <div 
             className="glass-card stat-card-clickable"
             onClick={() => {
-              if (onNavigate) onNavigate('team');
+              setActiveSection('user_progress');
             }}
-            title="Click to view team members"
+            title="Click to view team member progress and deadlines"
             style={{
               padding: '1.15rem 1.25rem',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between'
+              justifyContent: 'space-between',
+              borderColor: activeSection === 'user_progress' ? 'var(--accent-primary)' : undefined,
+              backgroundColor: activeSection === 'user_progress' ? 'rgba(239, 246, 255, 0.9)' : undefined
             }}
           >
             <div>
@@ -322,8 +379,16 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Filter Toolbar (Frosted Glass Panel) */}
-      <div className="glass-panel" style={{
+      {/* Dynamic Content: Either Team Progress & Deadlines Monitor OR Projects Grid */}
+      {activeSection === 'user_progress' ? (
+        <UserProgressTracker
+          onSelectProject={onSelectProject}
+          refreshTrigger={refreshTrigger}
+        />
+      ) : (
+        <>
+          {/* Filter Toolbar (Frosted Glass Panel) */}
+          <div className="glass-panel" style={{
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
@@ -456,7 +521,7 @@ export default function Dashboard({
             animation: 'spin 0.8s linear infinite',
             margin: '0 auto 0.75rem'
           }} />
-          <p style={{ fontSize: '0.85rem' }}>Loading projects from SQL Server...</p>
+          <p style={{ fontSize: '0.85rem' }}>Loading workspace projects...</p>
         </div>
       ) : filteredProjects.length === 0 ? (
         <div style={{
@@ -525,6 +590,8 @@ export default function Dashboard({
             />
           ))}
         </div>
+      )}
+        </>
       )}
 
       {/* Create Project Modal */}

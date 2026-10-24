@@ -9,7 +9,8 @@ const {
   createNewUser,
   modifyUser,
   removeUser,
-  fetchMyProjects
+  fetchMyProjects,
+  fetchUsersProgress
 } = require('../services/userService');
 
 /**
@@ -99,10 +100,21 @@ async function getMyProjectsHandler(req, res) {
   }
 }
 
+// GET /api/users/progress (For Admin to view all users' task progress & deadline delivery)
+async function getUsersProgressHandler(req, res) {
+  try {
+    const progressList = await fetchUsersProgress();
+    return res.json(progressList);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch user progress summary' });
+  }
+}
+
 module.exports = {
   listUsers,
   createUserHandler,
   updateUserHandler,
   deleteUserHandler,
-  getMyProjectsHandler
+  getMyProjectsHandler,
+  getUsersProgressHandler
 };
