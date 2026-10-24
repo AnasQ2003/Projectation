@@ -215,9 +215,11 @@ async function getUserAssignedProjects(userName, userEmail, userUsername = '') {
       const done = proj.myTasks.filter(t => (t.status || '').toLowerCase() === 'done').length;
       proj.progress = Math.round((done / proj.myTasks.length) * 100);
       proj.calculated_progress = proj.progress;
+      proj.status = proj.progress === 100 ? 'Completed' : 'In Progress';
     } else {
       proj.progress = proj.progress || 0;
       proj.calculated_progress = proj.progress;
+      proj.status = proj.progress === 100 ? 'Completed' : 'In Progress';
     }
   }
 

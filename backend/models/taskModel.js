@@ -110,7 +110,13 @@ async function modifyTask(taskId, { title, description, status, priority, assign
         SELECT CASE WHEN COUNT(*) = 0 THEN 0 ELSE (SUM(CASE WHEN LOWER(status) = 'done' THEN 1 ELSE 0 END) * 100) / COUNT(*) END
         FROM Tasks
         WHERE project_id = @pid
-      )
+      ),
+      status = CASE 
+        WHEN (SELECT COUNT(*) FROM Tasks WHERE project_id = @pid) > 0 
+         AND (SELECT COUNT(*) FROM Tasks WHERE project_id = @pid AND LOWER(status) != 'done') = 0 
+        THEN 'Completed'
+        ELSE 'In Progress'
+      END
       WHERE id = @pid;
     END;
   `;

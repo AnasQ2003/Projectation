@@ -116,13 +116,31 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
         (p.category && p.category.toLowerCase().includes(q)) ||
         (p.myTasks && p.myTasks.some(t => t.title && t.title.toLowerCase().includes(q)));
 
-      const matchesStatus = statusFilter === 'ALL' || 
-        (statusFilter === 'IN_PROGRESS' && p.status !== 'Completed') ||
-        (statusFilter === 'COMPLETED' && p.status === 'Completed');
+      const totalTasksCount = p.myTasks ? p.myTasks.length : 0;
+      const doneTasksCount = p.myTasks ? p.myTasks.filter(t => (t.status || '').toLowerCase() === 'done').length : 0;
+      const isCompleted = p.progress === 100 || (totalTasksCount > 0 && doneTasksCount === totalTasksCount) || ((p.status || '').toLowerCase() === 'completed' && doneTasksCount === totalTasksCount);
+      const isInProgress = !isCompleted;
+
+      let matchesStatus = true;
+      if (statusFilter === 'IN_PROGRESS') {
+        matchesStatus = isInProgress;
+      } else if (statusFilter === 'COMPLETED') {
+        matchesStatus = isCompleted;
+      }
 
       return matchesSearch && matchesStatus;
     });
   }, [projects, searchQuery, statusFilter]);
+
+  const completedProjectsCount = useMemo(() => {
+    return projects.filter(p => {
+      const total = p.myTasks ? p.myTasks.length : 0;
+      const done = p.myTasks ? p.myTasks.filter(t => (t.status || '').toLowerCase() === 'done').length : 0;
+      return p.progress === 100 || (total > 0 && done === total) || ((p.status || '').toLowerCase() === 'completed' && done === total);
+    }).length;
+  }, [projects]);
+
+  const inProgressProjectsCount = projects.length - completedProjectsCount;
 
   const completionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 100;
 
@@ -680,7 +698,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  In Progress
+                  In Progress ({inProgressProjectsCount})
                 </button>
                 <button
                   onClick={() => setStatusFilter('COMPLETED')}
@@ -694,7 +712,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  Completed
+                  Completed ({completedProjectsCount})
                 </button>
               </div>
             </div>
@@ -736,11 +754,19 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
               <div className="glass-card" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
                 <FolderKanban size={48} style={{ color: 'var(--text-dim)', margin: '0 auto 1rem', opacity: 0.7 }} />
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.45rem' }}>
-                  {searchQuery ? 'No Matching Workspaces Found' : 'No Projects Assigned'}
+                  {searchQuery 
+                    ? 'No Matching Workspaces Found' 
+                    : projects.length > 0 
+                    ? (statusFilter === 'COMPLETED' ? 'No Completed Projects Yet' : 'No In-Progress Projects')
+                    : 'No Projects Assigned'}
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '420px', margin: '0 auto' }}>
                   {searchQuery 
                     ? `No workspaces or tasks match "${searchQuery}". Clear your search query to view all assignments.`
+                    : projects.length > 0 
+                    ? (statusFilter === 'COMPLETED' 
+                        ? 'All assigned workspaces are currently in progress. Completed projects will appear here once all deliverables are done.' 
+                        : 'No active workspaces match the selected filter.')
                     : 'Your contributor account is ready. Workspaces will appear here as soon as a project lead assigns you.'}
                 </p>
               </div>
@@ -810,19 +836,28 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
 
                       {/* Status & Priority Badges */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                        <span
-                          style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            padding: '4px 12px',
-                            borderRadius: '20px',
-                            backgroundColor: proj.status === 'Completed' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(37, 99, 235, 0.1)',
-                            color: proj.status === 'Completed' ? '#059669' : '#2563eb',
-                            border: `1px solid ${proj.status === 'Completed' ? 'rgba(16, 185, 129, 0.28)' : 'rgba(37, 99, 235, 0.25)'}`
-                          }}
-                        >
-                          {proj.status || 'In Progress'}
-                        </span>
+                        {(() => {
+                          const totalTasksCount = proj.myTasks ? proj.myTasks.length : 0;
+                          const doneTasksCount = proj.myTasks ? proj.myTasks.filter(t => (t.status || '').toLowerCase() === 'done').length : 0;
+                          const isDone = proj.progress === 100 || (totalTasksCount > 0 && doneTasksCount === totalTasksCount) || ((proj.status || '').toLowerCase() === 'completed' && doneTasksCount === totalTasksCount);
+                          const displayStatus = isDone ? 'Completed' : 'In Progress';
+
+                          return (
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                padding: '4px 12px',
+                                borderRadius: '20px',
+                                backgroundColor: isDone ? 'rgba(16, 185, 129, 0.12)' : 'rgba(37, 99, 235, 0.1)',
+                                color: isDone ? '#059669' : '#2563eb',
+                                border: `1px solid ${isDone ? 'rgba(16, 185, 129, 0.28)' : 'rgba(37, 99, 235, 0.25)'}`
+                              }}
+                            >
+                              {displayStatus}
+                            </span>
+                          );
+                        })()}
 
                         <span
                           style={{
