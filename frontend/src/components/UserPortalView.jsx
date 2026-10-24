@@ -23,7 +23,8 @@ import {
   Award,
   Check,
   RotateCcw,
-  MessageSquare
+  MessageSquare,
+  Filter
 } from 'lucide-react';
 import { api } from '../services/api';
 import NotificationDropdown from './NotificationDropdown';
@@ -47,6 +48,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [priorityFilter, setPriorityFilter] = useState('ALL');
 
   // Interactive Task Status & Progress Update State
   const [editingTask, setEditingTask] = useState(null);
@@ -92,12 +94,14 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
     return () => { isMounted = false; };
   }, [user, refreshTrigger]);
 
-  // Aggregate stats across all assigned projects
-  const totalTasks = projects.reduce((acc, p) => acc + (p.myTasks ? p.myTasks.length : 0), 0);
-  const completedTasks = projects.reduce((acc, p) => {
-    if (!p.myTasks) return acc;
-    return acc + p.myTasks.filter(t => (t.status || '').toLowerCase() === 'done').length;
-  }, 0);
+  // Aggregate stats across all assigned projects & tasks
+  const allAssignedTasks = useMemo(() => {
+    return projects.flatMap(p => p.myTasks || []);
+  }, [projects]);
+
+  const totalTasks = allAssignedTasks.length;
+  const completedTasks = allAssignedTasks.filter(t => (t.status || '').toLowerCase() === 'done').length;
+  const inProgressTasks = allAssignedTasks.filter(t => (t.status || '').toLowerCase() !== 'done').length;
 
   // Find nearest upcoming deadline
   const deadlines = projects
@@ -106,41 +110,45 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
     .sort();
   const nextDeadline = deadlines[0] || 'Ongoing';
 
-  // Filter projects by search and status
+  // Filter projects & tasks by search, status, and priority
+  // When a user completes tasks, they show under the Completed tab even if the whole project has other active tasks
   const filteredProjects = useMemo(() => {
-    return projects.filter(p => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch = !q || 
-        (p.name && p.name.toLowerCase().includes(q)) ||
-        (p.code && p.code.toLowerCase().includes(q)) ||
-        (p.category && p.category.toLowerCase().includes(q)) ||
-        (p.myTasks && p.myTasks.some(t => t.title && t.title.toLowerCase().includes(q)));
+    const q = searchQuery.toLowerCase().trim();
 
-      const totalTasksCount = p.myTasks ? p.myTasks.length : 0;
-      const doneTasksCount = p.myTasks ? p.myTasks.filter(t => (t.status || '').toLowerCase() === 'done').length : 0;
-      const isCompleted = p.progress === 100 || (totalTasksCount > 0 && doneTasksCount === totalTasksCount) || ((p.status || '').toLowerCase() === 'completed' && doneTasksCount === totalTasksCount);
-      const isInProgress = !isCompleted;
+    return projects.map(proj => {
+      const projectMatchesQuery = !q || 
+        (proj.name && proj.name.toLowerCase().includes(q)) ||
+        (proj.code && proj.code.toLowerCase().includes(q)) ||
+        (proj.category && proj.category.toLowerCase().includes(q));
 
-      let matchesStatus = true;
-      if (statusFilter === 'IN_PROGRESS') {
-        matchesStatus = isInProgress;
-      } else if (statusFilter === 'COMPLETED') {
-        matchesStatus = isCompleted;
-      }
+      // Filter tasks in this project according to status, priority, and search
+      const visibleTasks = (proj.myTasks || []).filter(task => {
+        const isDone = (task.status || '').toLowerCase() === 'done';
+        
+        // Status filter: Completed vs In Progress
+        if (statusFilter === 'COMPLETED' && !isDone) return false;
+        if (statusFilter === 'IN_PROGRESS' && isDone) return false;
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [projects, searchQuery, statusFilter]);
+        // Priority filter
+        if (priorityFilter !== 'ALL' && task.priority !== priorityFilter) return false;
 
-  const completedProjectsCount = useMemo(() => {
-    return projects.filter(p => {
-      const total = p.myTasks ? p.myTasks.length : 0;
-      const done = p.myTasks ? p.myTasks.filter(t => (t.status || '').toLowerCase() === 'done').length : 0;
-      return p.progress === 100 || (total > 0 && done === total) || ((p.status || '').toLowerCase() === 'completed' && done === total);
-    }).length;
-  }, [projects]);
+        // Search query filter: check task title, description, notes or project match
+        if (!q) return true;
+        if (projectMatchesQuery) return true;
+        return (task.title && task.title.toLowerCase().includes(q)) ||
+               (task.description && task.description.toLowerCase().includes(q)) ||
+               (task.progress_note && task.progress_note.toLowerCase().includes(q));
+      });
 
-  const inProgressProjectsCount = projects.length - completedProjectsCount;
+      const shouldShow = visibleTasks.length > 0 || (projectMatchesQuery && statusFilter === 'ALL' && (!proj.myTasks || proj.myTasks.length === 0));
+
+      return {
+        ...proj,
+        visibleTasks,
+        shouldShow
+      };
+    }).filter(proj => proj.shouldShow);
+  }, [projects, searchQuery, statusFilter, priorityFilter]);
 
   const completionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 100;
 
@@ -196,7 +204,8 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
         newStatus,
         newProgress,
         task.progress_note || '',
-        user.name || user.username
+        user.name || user.username,
+        newCompletedAt
       );
       setToastMessage({ text: newStatus === 'done' ? `✓ Completed "${task.title}". Admin notified.` : `✓ Set "${task.title}" to In Progress.`, type: 'success' });
       if (onRefresh) onRefresh();
@@ -214,7 +223,10 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
       const statusVal = updateStatus.toLowerCase();
       const progressVal = statusVal === 'done' ? 100 : updateProgress;
       const noteVal = updateNote.trim();
-      const completedAtVal = statusVal === 'done' ? (editingTask.completed_at || new Date().toISOString().split('T')[0]) : null;
+      // Use user-entered date; fall back to today if marking done with no date set
+      const completedAtVal = statusVal === 'done'
+        ? (updateExpectedDate || new Date().toISOString().split('T')[0])
+        : null;
 
       // Optimistic local state update
       setProjects(prevProjects => {
@@ -249,7 +261,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
         progressVal,
         noteVal,
         user.name || user.username,
-        statusVal === 'done' ? (updateExpectedDate || new Date().toISOString().split('T')[0]) : null
+        completedAtVal
       );
 
       setToastMessage({ text: `✓ "${editingTask.title}" updated to ${statusVal.replace('_', ' ')} (${progressVal}%). Admin notified.`, type: 'success' });
@@ -355,7 +367,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
               style={{
                 width: '100%',
                 paddingLeft: '2.3rem',
-                paddingRight: '0.85rem',
+                paddingRight: searchQuery ? '2rem' : '0.85rem',
                 height: '36px',
                 fontSize: '0.825rem',
                 borderRadius: '8px',
@@ -365,6 +377,28 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                 boxSizing: 'border-box'
               }}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: '0.65rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-dim)',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           {/* User Identity, Live Notifications & Logout */}
@@ -670,50 +704,107 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                 </p>
               </div>
 
-              {/* Status Filter Tabs */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
-                <button
-                  onClick={() => setStatusFilter('ALL')}
+              {/* Filter & Search Toolbar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {/* Status Filter Tabs */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+                  <button
+                    onClick={() => setStatusFilter('ALL')}
+                    style={{
+                      padding: '0.35rem 0.85rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '7px',
+                      backgroundColor: statusFilter === 'ALL' ? '#059669' : 'transparent',
+                      color: statusFilter === 'ALL' ? '#ffffff' : 'var(--text-muted)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    All Tasks ({totalTasks})
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('IN_PROGRESS')}
+                    style={{
+                      padding: '0.35rem 0.85rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '7px',
+                      backgroundColor: statusFilter === 'IN_PROGRESS' ? '#059669' : 'transparent',
+                      color: statusFilter === 'IN_PROGRESS' ? '#ffffff' : 'var(--text-muted)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    In Progress ({inProgressTasks})
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('COMPLETED')}
+                    style={{
+                      padding: '0.35rem 0.85rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '7px',
+                      backgroundColor: statusFilter === 'COMPLETED' ? '#059669' : 'transparent',
+                      color: statusFilter === 'COMPLETED' ? '#ffffff' : 'var(--text-muted)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Completed ({completedTasks})
+                  </button>
+                </div>
+
+                {/* Priority Filter Dropdown */}
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
                   style={{
-                    padding: '0.35rem 0.85rem',
+                    height: '34px',
+                    padding: '0 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
                     fontSize: '0.75rem',
-                    fontWeight: 700,
-                    borderRadius: '7px',
-                    backgroundColor: statusFilter === 'ALL' ? '#059669' : 'transparent',
-                    color: statusFilter === 'ALL' ? '#ffffff' : 'var(--text-muted)',
-                    transition: 'all 0.15s ease'
+                    fontWeight: 600,
+                    color: 'var(--text-main)',
+                    cursor: 'pointer'
                   }}
+                  title="Filter tasks by priority"
                 >
-                  All ({projects.length})
-                </button>
-                <button
-                  onClick={() => setStatusFilter('IN_PROGRESS')}
-                  style={{
-                    padding: '0.35rem 0.85rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    borderRadius: '7px',
-                    backgroundColor: statusFilter === 'IN_PROGRESS' ? '#059669' : 'transparent',
-                    color: statusFilter === 'IN_PROGRESS' ? '#ffffff' : 'var(--text-muted)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  In Progress ({inProgressProjectsCount})
-                </button>
-                <button
-                  onClick={() => setStatusFilter('COMPLETED')}
-                  style={{
-                    padding: '0.35rem 0.85rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    borderRadius: '7px',
-                    backgroundColor: statusFilter === 'COMPLETED' ? '#059669' : 'transparent',
-                    color: statusFilter === 'COMPLETED' ? '#ffffff' : 'var(--text-muted)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  Completed ({completedProjectsCount})
-                </button>
+                  <option value="ALL">All Priorities</option>
+                  <option value="Urgent">Urgent Priority</option>
+                  <option value="High">High Priority</option>
+                  <option value="Medium">Medium Priority</option>
+                  <option value="Low">Low Priority</option>
+                </select>
+
+                {/* Reset Filters button if any filter is active */}
+                {(statusFilter !== 'ALL' || priorityFilter !== 'ALL' || searchQuery) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter('ALL');
+                      setPriorityFilter('ALL');
+                      setSearchQuery('');
+                    }}
+                    style={{
+                      height: '34px',
+                      padding: '0 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                      color: '#dc2626',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      cursor: 'pointer'
+                    }}
+                    title="Reset all search & status filters"
+                  >
+                    <RotateCcw size={12} />
+                    <span>Reset</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -974,7 +1065,12 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.925rem', fontWeight: 700, color: 'var(--text-main)' }}>
                           <CheckSquare size={16} style={{ color: '#059669' }} />
-                          <span>My Assigned Tasks ({proj.myTasks?.length || 0})</span>
+                          <span>My Tasks ({proj.visibleTasks ? proj.visibleTasks.length : (proj.myTasks?.length || 0)}{proj.visibleTasks && proj.myTasks && proj.visibleTasks.length !== proj.myTasks.length ? ` of ${proj.myTasks.length}` : ''})</span>
+                          {statusFilter !== 'ALL' && (
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 600 }}>
+                              • {statusFilter === 'COMPLETED' ? 'Completed Tasks' : 'In Progress Tasks'}
+                            </span>
+                          )}
                         </div>
                         <span style={{ fontSize: '0.725rem', color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <CheckCircle2 size={12} />
@@ -982,7 +1078,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                         </span>
                       </div>
 
-                      {(!proj.myTasks || proj.myTasks.length === 0) ? (
+                      {(!proj.visibleTasks || proj.visibleTasks.length === 0) ? (
                         <div
                           style={{
                             padding: '1.25rem',
@@ -994,14 +1090,47 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                             textAlign: 'center'
                           }}
                         >
-                          No specific individual tasks currently assigned to you in this workspace.
+                          {statusFilter === 'COMPLETED' 
+                            ? 'No completed tasks in this workspace yet. Check off deliverables as you finish them!' 
+                            : statusFilter === 'IN_PROGRESS' 
+                            ? 'All tasks in this workspace are completed!' 
+                            : 'No tasks currently assigned to you in this workspace.'}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                          {proj.myTasks.map((task) => {
-                            const isDone = (task.status || '').toLowerCase() === 'done';
-                            const isInProgress = (task.status || '').toLowerCase() === 'in_progress';
-                            const isReview = (task.status || '').toLowerCase() === 'review';
+                          {proj.visibleTasks.map((task) => {
+                            const statusStr = (task.status || 'todo').toLowerCase();
+                            const isDone = statusStr === 'done';
+                            const isInProgress = statusStr === 'in_progress';
+                            const isReview = statusStr === 'review';
+                            const isTodo = statusStr === 'todo';
+
+                            // Dynamic status border colors & backgrounds as requested
+                            const statusBorderColor = isDone 
+                              ? '#10b981' 
+                              : isInProgress 
+                              ? '#3b82f6' 
+                              : isReview 
+                              ? '#f59e0b' 
+                              : '#94a3b8';
+
+                            const statusBg = isDone 
+                              ? 'rgba(240, 253, 244, 0.75)' 
+                              : isInProgress 
+                              ? 'rgba(239, 246, 255, 0.75)' 
+                              : isReview 
+                              ? 'rgba(254, 243, 199, 0.65)' 
+                              : 'rgba(248, 250, 252, 0.85)';
+
+                            const statusAccentBar = isDone 
+                              ? '5px solid #059669' 
+                              : isInProgress 
+                              ? '5px solid #2563eb' 
+                              : isReview 
+                              ? '5px solid #d97706' 
+                              : '5px solid #64748b';
+
+                            const isOverdue = !isDone && task.due_date && new Date(task.due_date) < new Date(new Date().setHours(0,0,0,0));
 
                             return (
                               <div
@@ -1010,11 +1139,12 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                                   display: 'flex',
                                   flexDirection: 'column',
                                   gap: '0.65rem',
-                                  padding: '0.85rem 1.15rem',
-                                  backgroundColor: isDone ? 'rgba(240, 253, 244, 0.65)' : 'rgba(255, 255, 255, 0.95)',
-                                  border: `1px solid ${isDone ? 'rgba(16, 185, 129, 0.25)' : 'var(--border-subtle)'}`,
+                                  padding: '0.95rem 1.25rem',
+                                  backgroundColor: statusBg,
+                                  border: `1.5px solid ${statusBorderColor}`,
+                                  borderLeft: statusAccentBar,
                                   borderRadius: '12px',
-                                  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.02)',
+                                  boxShadow: '0 2px 5px rgba(15, 23, 42, 0.03)',
                                   transition: 'all 0.15s ease'
                                 }}
                               >
@@ -1156,9 +1286,20 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                                   {/* Deadlines & Completion Verification */}
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                                     {task.due_date && (
-                                      <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                        <Clock size={12} style={{ color: 'var(--text-dim)' }} />
-                                        <span>Due: {task.due_date}</span>
+                                      <span
+                                        style={{
+                                          color: isOverdue ? '#dc2626' : 'var(--text-muted)',
+                                          fontWeight: isOverdue ? 700 : 500,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '0.3rem',
+                                          backgroundColor: isOverdue ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
+                                          padding: isOverdue ? '2px 7px' : '0',
+                                          borderRadius: '6px'
+                                        }}
+                                      >
+                                        <Clock size={12} style={{ color: isOverdue ? '#dc2626' : 'var(--text-dim)' }} />
+                                        <span>Due: {task.due_date}{isOverdue ? ' (Overdue)' : ''}</span>
                                       </span>
                                     )}
 

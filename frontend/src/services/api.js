@@ -246,7 +246,7 @@ export const api = {
     const r = await request(`${API_BASE_URL}/tasks/${taskId}`, { method: 'PUT', body: { id: taskId, ...taskData } });
     invalidateCache('tasks', 'stats'); return r;
   },
-  async updateTaskStatus(taskId, status, progress_percent, progress_note, updated_by) {
+  async updateTaskStatus(taskId, status, progress_percent, progress_note, updated_by, completed_at = null) {
     const r = await request(`${API_BASE_URL}/tasks/status`, {
       method: 'POST',
       body: {
@@ -254,7 +254,8 @@ export const api = {
         status,
         progress_percent,
         progress_note,
-        updated_by
+        updated_by,
+        completed_at
       }
     });
     invalidateCache('tasks', 'stats', 'activity', 'users'); return r;
