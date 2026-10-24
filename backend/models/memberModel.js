@@ -135,11 +135,41 @@ async function findMemberByEmail(email, excludeId = null) {
   return result.recordset[0] || null;
 }
 
+/**
+ * Find member within a specific project by name or email
+ */
+async function findMemberInProject(projectId, name, email, excludeId = null) {
+  const cleanName = (name || '').trim().toLowerCase();
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanName && !cleanEmail) return null;
+
+  let query = `
+    SELECT * FROM Members 
+    WHERE project_id = @pid 
+      AND (
+        (LEN(@n) > 0 AND LOWER(LTRIM(RTRIM(name))) = @n)
+        OR (LEN(@e) > 0 AND LOWER(LTRIM(RTRIM(email))) = @e)
+      )
+  `;
+  if (excludeId) {
+    query += ` AND id != @excludeId`;
+  }
+  const result = await executeQuery(query, {
+    pid: parseInt(projectId),
+    n: cleanName,
+    e: cleanEmail,
+    excludeId: excludeId ? parseInt(excludeId) : null
+  });
+  return result.recordset[0] || null;
+}
+
 module.exports = {
   fetchAllMembers,
   insertMember,
   modifyMember,
   removeMember,
   findMemberByName,
-  findMemberByEmail
+  findMemberByEmail,
+  findMemberInProject
 };
+

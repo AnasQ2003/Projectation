@@ -128,16 +128,39 @@ async function updateUser(id, { username, name, role, email, password }) {
   return result.recordset[0] || null;
 }
 
-/**
- * Delete a user (Admin only)
- */
 async function deleteUser(id) {
+  const user = await findUserById(id);
+  if (user) {
+    const cleanEmail = (user.email || '').trim().toLowerCase();
+    const cleanName = (user.name || '').trim().toLowerCase();
+    const cleanUser = (user.username || '').trim().toLowerCase();
+    
+    // Remove member assignments from projects
+    await executeQuery(
+      `DELETE FROM Members 
+       WHERE LOWER(LTRIM(RTRIM(email))) = @e 
+          OR LOWER(LTRIM(RTRIM(name))) = @n 
+          OR LOWER(LTRIM(RTRIM(name))) = @u`,
+      { e: cleanEmail, n: cleanName, u: cleanUser }
+    );
+
+    // Unassign tasks assigned to deleted user
+    await executeQuery(
+      `UPDATE Tasks 
+       SET assignee = 'Unassigned' 
+       WHERE LOWER(LTRIM(RTRIM(assignee))) = @n 
+          OR LOWER(LTRIM(RTRIM(assignee))) = @u`,
+      { n: cleanName, u: cleanUser }
+    );
+  }
+
   const result = await executeQuery(
     `DELETE FROM Users WHERE id = @id`,
     { id }
   );
   return result.rowsAffected[0] > 0;
 }
+
 
 /**
  * Retrieve projects assigned to a specific regular user

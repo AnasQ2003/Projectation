@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, UserPlus, Sparkles, AlertCircle } from 'lucide-react';
+import { X, UserPlus, Sparkles, AlertCircle, Users } from 'lucide-react';
 import { api } from '../services/api';
 
 const AVATAR_COLORS = [
@@ -14,19 +14,56 @@ const AVATAR_COLORS = [
 ];
 
 export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
+  const [registeredUsers, setRegisteredUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('Full Stack Developer');
   const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
   const [loading, setLoading] = useState(false);
+  const [fetchingUsers, setFetchingUsers] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadRegisteredUsers() {
+      try {
+        setFetchingUsers(true);
+        const users = await api.getUsers();
+        if (isMounted) {
+          // Exclude admin role from assignable team member contributors
+          const regularUsers = (users || []).filter(u => (u.role || '').toLowerCase() !== 'admin');
+          setRegisteredUsers(regularUsers);
+        }
+      } catch (err) {
+        console.error('Failed to load registered users:', err);
+      } finally {
+        if (isMounted) setFetchingUsers(false);
+      }
+    }
+    loadRegisteredUsers();
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleSelectUser = (e) => {
+    const uId = e.target.value;
+    setSelectedUserId(uId);
+    setError('');
+    if (!uId) return;
+
+    const found = registeredUsers.find(u => u.id.toString() === uId.toString());
+    if (found) {
+      setName(found.name || found.username);
+      setEmail(found.email || '');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (!name.trim() || !email.trim()) {
-      setError('Name and Email are required');
+      setError('Please select or specify a registered user with a valid name and email');
       return;
     }
 
@@ -41,11 +78,12 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
       onMemberAdded();
       onClose();
     } catch (err) {
-      setError(err.message || 'Error adding member');
+      setError(err.message || 'Error adding member. Ensure the user is registered first.');
     } finally {
       setLoading(false);
     }
   };
+
 
   return createPortal(
     <div className="modal-overlay" onClick={onClose}>
@@ -100,6 +138,38 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
             </div>
           )}
 
+          {/* Registered User Selector */}
+          <div style={{ marginBottom: '1.2rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+              <span>Select Registered User *</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
+                {fetchingUsers ? 'Loading...' : `${registeredUsers.length} registered`}
+              </span>
+            </label>
+            <select
+              className="form-input"
+              value={selectedUserId}
+              onChange={handleSelectUser}
+              style={{
+                backgroundColor: 'var(--bg-app)',
+                borderColor: selectedUserId ? 'var(--accent-primary)' : 'var(--border-subtle)',
+                fontWeight: 600
+              }}
+            >
+              <option value="">-- Choose a registered contributor --</option>
+              {registeredUsers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name || u.username} ({u.email || `@${u.username}`})
+                </option>
+              ))}
+            </select>
+            {registeredUsers.length === 0 && !fetchingUsers && (
+              <p style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '0.35rem' }}>
+                No registered users found. First register the user in User Management before assigning.
+              </p>
+            )}
+          </div>
+
           <div style={{ marginBottom: '1.2rem' }}>
             <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
               Full Name *
@@ -107,14 +177,11 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
             <input
               type="text"
               className="form-input"
-              placeholder="e.g. Jordan Hayes"
+              placeholder="e.g. Ahmed or Sarah Chen"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                if (!email) {
-                  const slug = e.target.value.toLowerCase().replace(/\s+/g, '.');
-                  if (slug) setEmail(`${slug}@softwarehouse.dev`);
-                }
+                setSelectedUserId('');
               }}
               required
             />
@@ -127,9 +194,12 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
             <input
               type="email"
               className="form-input"
-              placeholder="jordan.h@softwarehouse.dev"
+              placeholder="user@softwarehouse.dev"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setSelectedUserId('');
+              }}
               required
             />
           </div>

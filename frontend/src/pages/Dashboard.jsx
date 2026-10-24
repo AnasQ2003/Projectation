@@ -175,16 +175,6 @@ export default function Dashboard({
                 <span>Team Progress & Deadlines</span>
               </button>
             </div>
-
-            {activeSection === 'projects' && (
-              <button
-                onClick={() => setShowNewProjectModal(true)}
-                className="btn-primary"
-              >
-                <Plus size={16} />
-                <span>Create Project</span>
-              </button>
-            )}
           </div>
         </div>
 

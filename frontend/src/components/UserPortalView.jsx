@@ -22,7 +22,6 @@ import {
   X,
   Award,
   Check,
-  RotateCcw,
   MessageSquare,
   Filter
 } from 'lucide-react';
@@ -775,36 +774,6 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                   <option value="Medium">Medium Priority</option>
                   <option value="Low">Low Priority</option>
                 </select>
-
-                {/* Reset Filters button if any filter is active */}
-                {(statusFilter !== 'ALL' || priorityFilter !== 'ALL' || searchQuery) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStatusFilter('ALL');
-                      setPriorityFilter('ALL');
-                      setSearchQuery('');
-                    }}
-                    style={{
-                      height: '34px',
-                      padding: '0 0.75rem',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
-                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                      color: '#dc2626',
-                      fontSize: '0.725rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      cursor: 'pointer'
-                    }}
-                    title="Reset all search & status filters"
-                  >
-                    <RotateCcw size={12} />
-                    <span>Reset</span>
-                  </button>
-                )}
               </div>
             </div>
 
