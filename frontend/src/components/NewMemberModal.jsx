@@ -2,16 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, UserPlus, Sparkles, AlertCircle, Users } from 'lucide-react';
 import { api } from '../services/api';
-
-const AVATAR_COLORS = [
-  '#6366f1', // Indigo
-  '#06b6d4', // Cyan
-  '#10b981', // Emerald
-  '#f59e0b', // Amber
-  '#ec4899', // Pink
-  '#8b5cf6', // Violet
-  '#3b82f6'  // Blue
-];
+import { getProjectTheme } from '../utils/colorUtils';
 
 export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
   const [registeredUsers, setRegisteredUsers] = useState([]);
@@ -19,7 +10,7 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('Full Stack Developer');
-  const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
+  const projectTheme = getProjectTheme(projectId);
   const [loading, setLoading] = useState(false);
   const [fetchingUsers, setFetchingUsers] = useState(true);
   const [error, setError] = useState('');
@@ -73,7 +64,7 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
         name: name.trim(),
         email: email.trim(),
         role,
-        avatar_color: selectedColor
+        avatar_color: projectTheme.bg
       });
       onMemberAdded();
       onClose();
@@ -220,28 +211,32 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
             </select>
           </div>
 
-          {/* Avatar Color Picker */}
-          <div style={{ marginBottom: '1.6rem' }}>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.45rem' }}>
-              Member Avatar Color
-            </label>
-            <div style={{ display: 'flex', gap: '0.6rem' }}>
-              {AVATAR_COLORS.map((col) => (
-                <button
-                  key={col}
-                  type="button"
-                  onClick={() => setSelectedColor(col)}
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: col,
-                    border: selectedColor === col ? '3px solid #fff' : '2px solid transparent',
-                    boxShadow: selectedColor === col ? `0 0 10px ${col}` : 'none',
-                    transform: selectedColor === col ? 'scale(1.15)' : 'scale(1)'
-                  }}
-                />
-              ))}
+          {/* Unified Project Theme Indicator */}
+          <div style={{
+            marginBottom: '1.6rem',
+            padding: '0.85rem 1rem',
+            borderRadius: '10px',
+            backgroundColor: projectTheme.light,
+            border: `1px solid ${projectTheme.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}>
+            <div style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '7px',
+              backgroundColor: projectTheme.bg,
+              boxShadow: '0 2px 5px rgba(0,0,0,0.15)',
+              flexShrink: 0
+            }} />
+            <div style={{ fontSize: '0.785rem', color: 'var(--text-main)' }}>
+              <span style={{ fontWeight: 700, color: projectTheme.text }}>
+                Project Unified Color: {projectTheme.name}
+              </span>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '1px' }}>
+                All members in this project automatically match with this unified highlight.
+              </div>
             </div>
           </div>
 

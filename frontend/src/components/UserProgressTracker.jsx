@@ -570,20 +570,29 @@ export default function UserProgressTracker({ onSelectProject, refreshTrigger })
               const timingBadge = isDone ? getCompletionTimingBadge(t.completed_at, t.due_date) : null;
               const deadlineInfo = !isDone ? getDeadlineInfo(t.due_date) : null;
 
-              return (
-                <div
-                  key={`${t.id}-${t.userId}`}
-                  style={{
-                    padding: '1rem 1.25rem',
-                    backgroundColor: isDone ? 'rgba(240, 253, 244, 0.45)' : '#ffffff',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                    transition: 'all 0.15s ease',
-                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.02)'
-                  }}
+                const statusBorder = isDone
+                  ? '3px solid #10b981'
+                  : t.status === 'in_progress'
+                  ? '3px solid #3b82f6'
+                  : t.status === 'review'
+                  ? '3px solid #f59e0b'
+                  : '3px solid #94a3b8';
+
+                return (
+                  <div
+                    key={`${t.id}-${t.userId}`}
+                    style={{
+                      padding: '1rem 1.25rem',
+                      backgroundColor: isDone ? 'rgba(240, 253, 244, 0.45)' : '#ffffff',
+                      border: '1px solid var(--border-subtle)',
+                      borderLeft: statusBorder,
+                      borderRadius: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                      transition: 'all 0.15s ease',
+                      boxShadow: '0 1px 3px rgba(15, 23, 42, 0.02)'
+                    }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = 'var(--accent-primary-border)';
                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(15, 23, 42, 0.05)';

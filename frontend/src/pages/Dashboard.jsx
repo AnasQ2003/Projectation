@@ -17,6 +17,7 @@ import ProjectCard from '../components/ProjectCard';
 import NewProjectModal from '../components/NewProjectModal';
 import CategoryManagerModal, { getStoredCategories, saveStoredCategories } from '../components/CategoryManagerModal';
 import UserProgressTracker from '../components/UserProgressTracker';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { getDeadlineInfo } from '../utils/dateUtils';
 
 export default function Dashboard({ 
@@ -37,6 +38,8 @@ export default function Dashboard({
   const [selectedUrgency, setSelectedUrgency] = useState('ALL');
   const [categories, setCategories] = useState(() => getStoredCategories());
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
@@ -62,13 +65,21 @@ export default function Dashboard({
     fetchDashboardData();
   }, [refreshTrigger]);
 
-  const handleDeleteProject = async (projectId) => {
-    if (!window.confirm('Are you sure you want to delete this project?')) return;
+  const handleDeleteProject = (project) => {
+    setProjectToDelete(project);
+  };
+
+  const handleConfirmDeleteProject = async () => {
+    if (!projectToDelete) return;
+    setIsDeletingProject(true);
     try {
-      await api.deleteProject(projectId);
+      await api.deleteProject(projectToDelete.id);
+      setProjectToDelete(null);
       fetchDashboardData();
     } catch (err) {
-      alert('Failed to delete project: ' + err.message);
+      console.error('Failed to delete project:', err);
+    } finally {
+      setIsDeletingProject(false);
     }
   };
 
@@ -474,28 +485,6 @@ export default function Dashboard({
               <option value="SAFE">On Track / Safe</option>
             </select>
           </div>
-
-          {hasActiveFilter && (
-            <button
-              onClick={clearAllFilters}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                padding: '0.3rem 0.65rem',
-                borderRadius: '6px',
-                fontSize: '0.75rem',
-                color: 'var(--accent-primary)',
-                backgroundColor: 'var(--accent-primary-light)',
-                border: '1px solid var(--accent-primary-border)',
-                fontWeight: 600
-              }}
-              title="Clear all filters to show every project"
-            >
-              <RotateCcw size={12} />
-              <span>Clear Filter</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -606,6 +595,18 @@ export default function Dashboard({
           }}
         />
       )}
+
+      {/* Premium Confirm Delete Modal for Projects */}
+      <ConfirmDeleteModal
+        isOpen={!!projectToDelete}
+        title="Delete Project"
+        itemName={projectToDelete?.name}
+        itemType="project"
+        confirmText="Delete Project"
+        isDeleting={isDeletingProject}
+        onConfirm={handleConfirmDeleteProject}
+        onClose={() => !isDeletingProject && setProjectToDelete(null)}
+      />
     </div>
   );
 }

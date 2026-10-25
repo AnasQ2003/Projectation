@@ -141,16 +141,41 @@ async function modifyProject(projectId, updateData) {
 }
 
 /**
- * Delete a project by ID
+ * Find project by name (case-insensitive) to prevent duplicate names
+ */
+async function findProjectByName(name, excludeId = null) {
+  const cleanName = (name || '').trim().toLowerCase();
+  if (!cleanName) return null;
+  const query = excludeId
+    ? 'SELECT * FROM Projects WHERE LOWER(LTRIM(RTRIM(name))) = @n AND id != @excludeId'
+    : 'SELECT * FROM Projects WHERE LOWER(LTRIM(RTRIM(name))) = @n';
+  const result = await executeQuery(query, { n: cleanName, excludeId });
+  return result.recordset[0] || null;
+}
+
+/**
+ * Delete a project by ID with full cascade of dependent records
  */
 async function removeProject(projectId) {
-  await executeQuery('DELETE FROM Projects WHERE id = @id', { id: projectId });
+  const pid = parseInt(projectId);
+  // 1. Delete tasks in this project
+  await executeQuery('DELETE FROM Tasks WHERE project_id = @id', { id: pid });
+  // 2. Delete team members in this project
+  await executeQuery('DELETE FROM Members WHERE project_id = @id', { id: pid });
+  // 3. Delete activity logs for this project
+  await executeQuery('DELETE FROM ActivityLogs WHERE project_id = @id', { id: pid });
+  // 4. Delete notifications linking to this project
+  await executeQuery('DELETE FROM Notifications WHERE link_id = @id', { id: pid });
+  // 5. Delete the project itself
+  await executeQuery('DELETE FROM Projects WHERE id = @id', { id: pid });
 }
 
 module.exports = {
   fetchAllProjects,
   fetchProjectById,
+  findProjectByName,
   insertProject,
   modifyProject,
   removeProject
 };
+

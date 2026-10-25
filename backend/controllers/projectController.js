@@ -81,7 +81,9 @@ async function editProject(req, res) {
 
 // POST /api/projects/delete  (replaces DELETE /api/projects/:id)
 async function removeProjectHandler(req, res) {
-  const id = req.body.id || req.params.id;
+  // Express 5 / router package compat: params may be undefined on DELETE; fall back to URL
+  const urlId = (req.path || req.url || '').split('/').filter(Boolean).pop();
+  const id = req.params?.id || req.body?.id || (urlId && urlId !== 'delete' ? urlId : undefined);
 
   const idErrors = validateProjectId({ id });
   if (idErrors.length > 0) {

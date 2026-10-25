@@ -182,10 +182,10 @@ export default function NewProjectModal({ onClose, onProjectCreated }) {
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
               >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
                 <option value="Urgent">Urgent (P0 Critical)</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
               </select>
             </div>
           </div>

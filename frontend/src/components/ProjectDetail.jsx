@@ -20,10 +20,12 @@ import {
 
 import { api } from '../services/api';
 import { getDeadlineInfo, formatDate } from '../utils/dateUtils';
+import { getProjectTheme } from '../utils/colorUtils';
 import NewTaskModal from './NewTaskModal';
 import NewMemberModal from './NewMemberModal';
 import MemberDetailModal from './MemberDetailModal';
 import TaskDetailModal from './TaskDetailModal';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
   const [project, setProject] = useState(null);
@@ -43,6 +45,10 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
   // Selected Items for Detail Modals
   const [selectedMember, setSelectedMember] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
+
+  // Delete confirmation modal state
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { type: 'task'|'member'|'project', id, name }
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Modals
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -75,36 +81,41 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
     }
   };
 
-  // Handle task deletion
-  const handleDeleteTask = async (taskId) => {
-    if (!window.confirm('Delete this task?')) return;
-    try {
-      await api.deleteTask(taskId);
-      fetchProjectDetails();
-    } catch (err) {
-      alert('Error deleting task: ' + err.message);
-    }
+  // Handle task deletion — opens premium confirm modal
+  const handleDeleteTask = (taskId, taskTitle) => {
+    setDeleteConfirm({ type: 'task', id: taskId, name: taskTitle || 'this task' });
   };
 
-  // Handle member removal
-  const handleDeleteMember = async (memberId) => {
-    if (!window.confirm('Remove this team member?')) return;
-    try {
-      await api.deleteMember(memberId);
-      fetchProjectDetails();
-    } catch (err) {
-      alert('Error removing member: ' + err.message);
-    }
+  // Handle member removal — opens premium confirm modal
+  const handleDeleteMember = (memberId, memberName) => {
+    setDeleteConfirm({ type: 'member', id: memberId, name: memberName || 'this team member' });
   };
 
-  // Handle project deletion
-  const handleDeleteProject = async () => {
-    if (!window.confirm(`Permanently delete "${project.name}" and all associated tasks?`)) return;
+  // Handle project deletion — opens premium confirm modal
+  const handleDeleteProject = () => {
+    setDeleteConfirm({ type: 'project', id: projectId, name: project?.name });
+  };
+
+  // Actual deletion execution after confirmation
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+    setIsDeleting(true);
     try {
-      await api.deleteProject(projectId);
-      onProjectDeleted();
+      if (deleteConfirm.type === 'task') {
+        await api.deleteTask(deleteConfirm.id);
+        fetchProjectDetails();
+      } else if (deleteConfirm.type === 'member') {
+        await api.deleteMember(deleteConfirm.id);
+        fetchProjectDetails();
+      } else if (deleteConfirm.type === 'project') {
+        await api.deleteProject(projectId);
+        onProjectDeleted();
+      }
+      setDeleteConfirm(null);
     } catch (err) {
-      alert('Error deleting project: ' + err.message);
+      console.error('Delete error:', err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -664,7 +675,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteTask(t.id);
+                                handleDeleteTask(t.id, t.title);
                               }}
                               style={{ color: 'var(--text-dim)', padding: '0.15rem' }}
                               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-danger)'}
@@ -789,70 +800,74 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
             gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
             gap: '1rem'
           }}>
-            {members.map((m) => (
-              <div
-                key={m.id}
-                onClick={() => setSelectedMember({
-                  ...m,
-                  project_name: project.name,
-                  project_code: project.code,
-                  tasks: tasks.filter(t => t.assignee === m.name)
-                })}
-                style={{
-                  backgroundColor: 'var(--bg-card)',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-subtle)',
-                  padding: '1.15rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  boxShadow: 'var(--shadow-sm)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent-primary)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                }}
-                title="Click to view working info and edit member profile"
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
+            {members.map((m) => {
+              const memberTheme = getProjectTheme(projectId, project?.name);
+              return (
+                <div
+                  key={m.id}
+                  onClick={() => setSelectedMember({
+                    ...m,
+                    project_name: project.name,
+                    project_code: project.code,
+                    tasks: tasks.filter(t => t.assignee === m.name)
+                  })}
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
                     borderRadius: '10px',
-                    backgroundColor: m.avatar_color || '#2563eb',
-                    color: '#ffffff',
+                    border: '1px solid var(--border-subtle)',
+                    borderLeft: `4px solid ${memberTheme.bg}`,
+                    padding: '1.15rem',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontSize: '0.95rem'
-                  }}>
-                    {m.name.slice(0, 2).toUpperCase()}
-                  </div>
-
-                  <div>
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.1rem' }}>
-                      {m.name}
-                    </h4>
+                    justifyContent: 'space-between',
+                    boxShadow: 'var(--shadow-sm)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = memberTheme.border;
+                    e.currentTarget.style.boxShadow = `0 4px 12px ${memberTheme.light}`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                  }}
+                  title="Click to view working info and edit member profile"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                     <div style={{
-                      fontSize: '0.725rem',
-                      fontWeight: 600,
-                      color: 'var(--accent-primary)',
-                      marginBottom: '0.15rem'
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '10px',
+                      backgroundColor: memberTheme.bg,
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      fontSize: '0.95rem',
+                      boxShadow: `0 2px 8px ${memberTheme.border}`
                     }}>
-                      {m.role}
+                      {m.name.slice(0, 2).toUpperCase()}
                     </div>
-                    <div style={{ fontSize: '0.725rem', color: 'var(--text-dim)' }}>
-                      {m.email}
+
+                    <div>
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.1rem' }}>
+                        {m.name}
+                      </h4>
+                      <div style={{
+                        fontSize: '0.725rem',
+                        fontWeight: 600,
+                        color: memberTheme.text,
+                        marginBottom: '0.15rem'
+                      }}>
+                        {m.role}
+                      </div>
+                      <div style={{ fontSize: '0.725rem', color: 'var(--text-dim)' }}>
+                        {m.email}
+                      </div>
                     </div>
                   </div>
-                </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <button
@@ -883,7 +898,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteMember(m.id);
+                      handleDeleteMember(m.id, m.name);
                     }}
                     style={{
                       padding: '0.35rem',
@@ -901,7 +916,8 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </div>
       )}
@@ -1224,10 +1240,10 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
                   value={editPriority}
                   onChange={(e) => setEditPriority(e.target.value)}
                 >
-                  <option value="Low">Low Priority</option>
-                  <option value="Medium">Medium Priority</option>
-                  <option value="High">High Priority</option>
                   <option value="Urgent">Urgent Priority</option>
+                  <option value="High">High Priority</option>
+                  <option value="Medium">Medium Priority</option>
+                  <option value="Low">Low Priority</option>
                 </select>
               </div>
 
@@ -1288,6 +1304,25 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
         </div>,
         document.body
       )}
+      {/* Premium Confirm Delete Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!deleteConfirm}
+        title={
+          deleteConfirm?.type === 'project' ? 'Delete Project' :
+          deleteConfirm?.type === 'task' ? 'Delete Task' :
+          'Remove Team Member'
+        }
+        itemName={deleteConfirm?.name}
+        itemType={deleteConfirm?.type || 'item'}
+        confirmText={
+          deleteConfirm?.type === 'project' ? 'Delete Project' :
+          deleteConfirm?.type === 'task' ? 'Delete Task' :
+          'Remove Member'
+        }
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onClose={() => !isDeleting && setDeleteConfirm(null)}
+      />
     </div>
   );
 }

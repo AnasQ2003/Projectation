@@ -130,10 +130,10 @@ export default function NewTaskModal({ projectId, members = [], defaultStatus = 
                 Priority Level
               </label>
               <select className="form-input" value={priority} onChange={(e) => setPriority(e.target.value)}>
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
                 <option value="Urgent">Urgent</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
               </select>
             </div>
           </div>

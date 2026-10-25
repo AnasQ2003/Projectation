@@ -90,7 +90,9 @@ async function updateTaskStatus(req, res) {
 
 // POST /api/tasks/delete  (replaces DELETE /api/tasks/:id)
 async function removeTaskHandler(req, res) {
-  const id = req.body.id || req.params.id;
+  // Express 5 / router package compat: params may be undefined on DELETE; fall back to URL
+  const urlId = (req.path || req.url || '').split('/').filter(Boolean).pop();
+  const id = req.params?.id || req.body?.id || (urlId && urlId !== 'delete' ? urlId : undefined);
 
   const idErrors = validateTaskId({ id });
   if (idErrors.length > 0) {

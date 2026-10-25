@@ -14,12 +14,15 @@ import {
   Sparkles
 } from 'lucide-react';
 import { api } from '../services/api';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 export default function UserManagerModal({ onClose }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   // Editing state
   const [editingUserId, setEditingUserId] = useState(null);
@@ -117,18 +120,26 @@ export default function UserManagerModal({ onClose }) {
     }
   };
 
-  const handleDeleteUser = async (id, role, name) => {
+  const handleDeleteUser = (id, role, name) => {
     if (role === 'Admin') {
       alert('Primary Administrator cannot be deleted.');
       return;
     }
-    if (!window.confirm(`Are you sure you want to delete user account "${name}"?`)) return;
+    setUserToDelete({ id, name });
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
     try {
-      await api.deleteUser(id);
+      await api.deleteUser(userToDelete.id);
       setSuccessMsg('User removed successfully.');
+      setUserToDelete(null);
       await loadUsers();
     } catch (err) {
       setError(err.message || 'Failed to delete user');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -467,6 +478,17 @@ export default function UserManagerModal({ onClose }) {
           )}
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={!!userToDelete}
+        title="Delete User Account"
+        itemName={userToDelete?.name}
+        itemType="user"
+        confirmText="Delete User"
+        isDeleting={isDeletingUser}
+        onConfirm={handleConfirmDeleteUser}
+        onClose={() => !isDeletingUser && setUserToDelete(null)}
+      />
     </div>
   );
 }

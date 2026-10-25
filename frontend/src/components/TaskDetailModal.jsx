@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { formatDate } from '../utils/dateUtils';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 export default function TaskDetailModal({
   task,
@@ -38,6 +39,7 @@ export default function TaskDetailModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   if (!task) return null;
 
@@ -80,17 +82,22 @@ export default function TaskDetailModal({
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm(`Permanently delete "${task.title}"?`)) return;
+  const handleDelete = () => {
+    setShowConfirmDelete(true);
+  };
+
+  const handleConfirmDelete = async () => {
     setLoading(true);
     try {
       await api.deleteTask(task.id);
       if (onTaskDeleted) {
         onTaskDeleted(task.id);
       }
+      setShowConfirmDelete(false);
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to delete task');
+      setShowConfirmDelete(false);
       setLoading(false);
     }
   };
@@ -102,7 +109,7 @@ export default function TaskDetailModal({
     { id: 'done', label: 'Completed', color: '#16a34a' }
   ];
 
-  const priorityOptions = ['Low', 'Medium', 'High', 'Urgent'];
+  const priorityOptions = ['Urgent', 'High', 'Medium', 'Low'];
 
   return createPortal(
     <div className="modal-overlay" onClick={onClose}>
@@ -348,6 +355,17 @@ export default function TaskDetailModal({
           </div>
         </form>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={showConfirmDelete}
+        title="Delete Task"
+        itemName={task.title}
+        itemType="task"
+        confirmText="Delete Task"
+        isDeleting={loading}
+        onConfirm={handleConfirmDelete}
+        onClose={() => !loading && setShowConfirmDelete(false)}
+      />
     </div>,
     document.body
   );

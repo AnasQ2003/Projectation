@@ -48,6 +48,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [highlightedProjectId, setHighlightedProjectId] = useState(null);
 
   // Interactive Task Status & Progress Update State
   const [editingTask, setEditingTask] = useState(null);
@@ -150,6 +151,24 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
   }, [projects, searchQuery, statusFilter, priorityFilter]);
 
   const completionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 100;
+
+  // Handle notification "View" — scroll to & highlight the relevant project
+  const handleSelectProject = (projectId) => {
+    // Reset filters so the project card is visible
+    setStatusFilter('ALL');
+    setSearchQuery('');
+    setPriorityFilter('ALL');
+    setHighlightedProjectId(projectId);
+    // Give React a tick to render the card before scrolling
+    setTimeout(() => {
+      const el = document.getElementById(`user-project-${projectId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      // Remove highlight after 3 seconds
+      setTimeout(() => setHighlightedProjectId(null), 3000);
+    }, 120);
+  };
 
   // Open modal to update task progress, status, and notes
   const handleOpenEditTask = (task, project) => {
@@ -405,7 +424,8 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
             {/* Live Notification Bell & Dropdown */}
             <NotificationDropdown 
               user={user} 
-              refreshTrigger={refreshTrigger} 
+              refreshTrigger={refreshTrigger}
+              onSelectProject={handleSelectProject}
             />
 
             <div style={{ height: '22px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
@@ -835,11 +855,18 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                 {filteredProjects.map((proj) => (
                   <div
                     key={proj.id}
+                    id={`user-project-${proj.id}`}
                     className="glass-card"
                     style={{
                       padding: '1.75rem',
                       borderRadius: '16px',
-                      border: '1px solid var(--border-subtle)'
+                      border: highlightedProjectId === proj.id
+                        ? '2px solid #059669'
+                        : '1px solid var(--border-subtle)',
+                      boxShadow: highlightedProjectId === proj.id
+                        ? '0 0 0 4px rgba(16, 185, 129, 0.15), 0 8px 24px rgba(15, 23, 42, 0.08)'
+                        : undefined,
+                      transition: 'border 0.3s ease, box-shadow 0.3s ease'
                     }}
                   >
                     {/* Project Header Row */}

@@ -103,10 +103,21 @@ async function modifyMember(memberId, { name, email, role, project_id, avatar_co
 }
 
 /**
- * Delete a member by ID
+ * Delete a member by ID and unassign tasks cleanly
  */
 async function removeMember(memberId) {
-  await executeQuery('DELETE FROM Members WHERE id = @id', { id: memberId });
+  const mid = parseInt(memberId);
+  const mRes = await executeQuery('SELECT * FROM Members WHERE id = @id', { id: mid });
+  if (mRes.recordset && mRes.recordset.length > 0) {
+    const m = mRes.recordset[0];
+    if (m.name && m.project_id) {
+      await executeQuery(
+        'UPDATE Tasks SET assignee = @unassigned WHERE project_id = @pid AND assignee = @name',
+        { unassigned: 'Unassigned', pid: m.project_id, name: m.name }
+      );
+    }
+  }
+  await executeQuery('DELETE FROM Members WHERE id = @id', { id: mid });
 }
 
 /**

@@ -48,7 +48,8 @@ async function createUserHandler(req, res) {
 
 // PUT /api/users/:id or POST /api/users/update
 async function updateUserHandler(req, res) {
-  const id = req.params.id || req.body.id;
+  const urlId = (req.path || req.url || '').split('/').filter(Boolean).pop();
+  const id = req.params?.id || req.body?.id || (urlId && urlId !== 'update' ? urlId : undefined);
   const { id: _, ...updateData } = req.body;
   const errors = validateUpdateUser({ id, ...updateData });
   if (errors.length > 0) {
@@ -68,7 +69,8 @@ async function updateUserHandler(req, res) {
 
 // DELETE /api/users/:id or POST /api/users/delete
 async function deleteUserHandler(req, res) {
-  const id = req.params.id || req.body.id;
+  const urlId = (req.path || req.url || '').split('/').filter(Boolean).pop();
+  const id = req.params?.id || req.body?.id || (urlId && urlId !== 'delete' ? urlId : undefined);
   const errors = validateUserId({ id });
   if (errors.length > 0) {
     return res.status(400).json({ error: errors[0], errors });

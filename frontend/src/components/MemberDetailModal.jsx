@@ -19,6 +19,8 @@ import {
 import { api } from '../services/api';
 import { formatDate } from '../utils/dateUtils';
 
+import { getProjectTheme } from '../utils/colorUtils';
+
 const PRESET_ROLES = [
   'Full Stack Developer',
   'Senior Frontend Engineer',
@@ -28,8 +30,6 @@ const PRESET_ROLES = [
   'DevOps Specialist',
   'Project Manager'
 ];
-
-const AVATAR_COLORS = ['#2563eb', '#0891b2', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#4f46e5'];
 
 export default function MemberDetailModal({
   member,
@@ -45,8 +45,10 @@ export default function MemberDetailModal({
   const [editRole, setEditRole] = useState(member?.role || '');
   const [editEmail, setEditEmail] = useState(member?.email || '');
   const [editProjectId, setEditProjectId] = useState(member?.project_id ? member.project_id.toString() : '');
-  const [editColor, setEditColor] = useState(member?.avatar_color || '#2563eb');
   
+  const currentProjectTheme = getProjectTheme(member?.project_id, member?.project_name);
+  const selectedProjectTheme = getProjectTheme(editProjectId ? parseInt(editProjectId) : member?.project_id);
+
   // Assign task state
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
@@ -72,19 +74,24 @@ export default function MemberDetailModal({
     setError('');
     setSuccessMsg('');
 
-    if (!editName.trim() || !editEmail.trim() || !editRole.trim()) {
-      setError('Name, email, and role are required');
+    const finalName = (editName || member.name || '').trim();
+    const finalEmail = (editEmail || member.email || '').trim();
+
+    if (!finalName || !finalEmail || !editRole.trim()) {
+      setError('Professional role is required');
       return;
     }
 
     setLoading(true);
     try {
+      const targetProjectId = editProjectId ? parseInt(editProjectId) : member.project_id;
+      const targetTheme = getProjectTheme(targetProjectId);
       await api.updateMember(member.id, {
-        name: editName.trim(),
+        name: finalName,
         role: editRole.trim(),
-        email: editEmail.trim(),
-        project_id: editProjectId ? parseInt(editProjectId) : member.project_id,
-        avatar_color: editColor
+        email: finalEmail,
+        project_id: targetProjectId,
+        avatar_color: targetTheme.bg
       });
       setSuccessMsg('Member profile successfully updated!');
       if (onMemberUpdated) {
@@ -165,14 +172,14 @@ export default function MemberDetailModal({
               width: '52px',
               height: '52px',
               borderRadius: '14px',
-              backgroundColor: member.avatar_color || '#2563eb',
+              backgroundColor: currentProjectTheme.bg,
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 800,
               fontSize: '1.3rem',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              boxShadow: `0 4px 12px ${currentProjectTheme.border}`,
               flexShrink: 0
             }}>
               {member.name.slice(0, 2).toUpperCase()}
@@ -217,28 +224,32 @@ export default function MemberDetailModal({
 
         {/* Tab Switcher */}
         <div style={{
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           borderBottom: '1px solid var(--border-subtle)',
           backgroundColor: 'var(--bg-card)',
-          padding: '0 1rem',
-          flexShrink: 0
+          padding: '0 0.75rem',
+          flexShrink: 0,
+          gap: '0.25rem'
         }}>
           <button
             onClick={() => { setActiveTab('info'); setError(''); setSuccessMsg(''); }}
             style={{
-              padding: '0.65rem 1rem',
+              padding: '0.75rem 0.5rem',
               fontSize: '0.825rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.4rem',
               color: activeTab === 'info' ? 'var(--accent-primary)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'info' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              borderBottom: activeTab === 'info' ? '2.5px solid var(--accent-primary)' : '2.5px solid transparent',
               background: 'transparent',
               borderTop: 'none',
               borderLeft: 'none',
               borderRight: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
           >
             <UserCheck size={15} />
@@ -248,19 +259,21 @@ export default function MemberDetailModal({
           <button
             onClick={() => { setActiveTab('edit'); setError(''); setSuccessMsg(''); }}
             style={{
-              padding: '0.65rem 1rem',
+              padding: '0.75rem 0.5rem',
               fontSize: '0.825rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.4rem',
               color: activeTab === 'edit' ? 'var(--accent-primary)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'edit' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              borderBottom: activeTab === 'edit' ? '2.5px solid var(--accent-primary)' : '2.5px solid transparent',
               background: 'transparent',
               borderTop: 'none',
               borderLeft: 'none',
               borderRight: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
           >
             <Edit3 size={15} />
@@ -270,19 +283,21 @@ export default function MemberDetailModal({
           <button
             onClick={() => { setActiveTab('assign'); setError(''); setSuccessMsg(''); }}
             style={{
-              padding: '0.65rem 1rem',
+              padding: '0.75rem 0.5rem',
               fontSize: '0.825rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.4rem',
               color: activeTab === 'assign' ? 'var(--accent-primary)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'assign' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              borderBottom: activeTab === 'assign' ? '2.5px solid var(--accent-primary)' : '2.5px solid transparent',
               background: 'transparent',
               borderTop: 'none',
               borderLeft: 'none',
               borderRight: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
           >
             <Plus size={15} />
@@ -531,57 +546,7 @@ export default function MemberDetailModal({
           {/* TAB 2: EDIT MEMBER DETAILS (ADMIN) */}
           {activeTab === 'edit' && (
             <form onSubmit={handleEditSubmit}>
-              {/* Card 1: Identity & Contact */}
-              <div style={{
-                padding: '1.1rem 1.25rem',
-                borderRadius: '12px',
-                backgroundColor: 'var(--bg-subtle)',
-                border: '1px solid var(--border-subtle)',
-                marginBottom: '1rem'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.85rem' }}>
-                  <Briefcase size={15} color="var(--accent-primary)" />
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Identity & Contact
-                  </span>
-                </div>
-
-                <div style={{ marginBottom: '0.9rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="e.g. Ahmed (must be distinct)"
-                    required
-                  />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.2rem', display: 'block' }}>
-                    Names cannot be exact same across members.
-                  </span>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    value={editEmail}
-                    onChange={(e) => setEditEmail(e.target.value)}
-                    placeholder="e.g. ahmed@softwarehouse.dev"
-                    required
-                  />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.2rem', display: 'block' }}>
-                    Emails cannot be exact same across members.
-                  </span>
-                </div>
-              </div>
-
-              {/* Card 2: Role & Designation */}
+              {/* Card 1: Role & Position */}
               <div style={{
                 padding: '1.1rem 1.25rem',
                 borderRadius: '12px',
@@ -643,7 +608,7 @@ export default function MemberDetailModal({
                 </div>
               </div>
 
-              {/* Card 3: Project Workspace & Theme */}
+              {/* Card 3: Project Workspace */}
               <div style={{
                 padding: '1.1rem 1.25rem',
                 borderRadius: '12px',
@@ -654,14 +619,13 @@ export default function MemberDetailModal({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.85rem' }}>
                   <FolderKanban size={15} color="#16a34a" />
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Workspace & Visual Avatar
+                    Assigned Project Workspace
                   </span>
                 </div>
 
-                {/* Assigned Project */}
-                <div style={{ marginBottom: '1rem' }}>
+                <div style={{ marginBottom: '0.85rem' }}>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
-                    Assigned Project Workspace
+                    Project Workspace
                   </label>
                   <select
                     className="form-input"
@@ -676,39 +640,31 @@ export default function MemberDetailModal({
                   </select>
                 </div>
 
-                {/* Avatar Color Picker */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
-                    Avatar Color
-                  </label>
-                  <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    {AVATAR_COLORS.map((c) => {
-                      const isSelected = editColor === c;
-                      return (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setEditColor(c)}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '9px',
-                            backgroundColor: c,
-                            border: isSelected ? '2px solid #ffffff' : '2px solid transparent',
-                            outline: isSelected ? `2px solid ${c}` : '1px solid rgba(0,0,0,0.1)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#ffffff',
-                            transition: 'transform 0.15s ease'
-                          }}
-                          title={`Select ${c}`}
-                        >
-                          {isSelected && <Check size={16} strokeWidth={3} />}
-                        </button>
-                      );
-                    })}
+                {/* Unified Team Theme Indicator */}
+                <div style={{
+                  padding: '0.75rem 0.9rem',
+                  borderRadius: '9px',
+                  backgroundColor: selectedProjectTheme.light,
+                  border: `1px solid ${selectedProjectTheme.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem'
+                }}>
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '6px',
+                    backgroundColor: selectedProjectTheme.bg,
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.15)',
+                    flexShrink: 0
+                  }} />
+                  <div style={{ fontSize: '0.775rem', color: 'var(--text-main)' }}>
+                    <span style={{ fontWeight: 700, color: selectedProjectTheme.text }}>
+                      Team Unified Palette: {selectedProjectTheme.name}
+                    </span>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '1px' }}>
+                      All members assigned to this project automatically share this color.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -795,10 +751,10 @@ export default function MemberDetailModal({
                     value={taskPriority}
                     onChange={(e) => setTaskPriority(e.target.value)}
                   >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
                     <option value="Urgent">Urgent</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
                   </select>
                 </div>
 

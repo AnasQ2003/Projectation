@@ -21,7 +21,9 @@ import {
 } from 'lucide-react';
 
 import { api } from '../services/api';
+import { getProjectTheme } from '../utils/colorUtils';
 import MemberDetailModal from '../components/MemberDetailModal';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 export default function TeamView({ onSelectProject, refreshTrigger }) {
   const [members, setMembers] = useState([]);
@@ -34,25 +36,31 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
 
   // Add Member Modal State
   const [showAddModal, setShowAddModal] = useState(false);
+  const [registeredUsers, setRegisteredUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('Full Stack Developer');
   const [newMemberProjectId, setNewMemberProjectId] = useState('');
-  const [newMemberColor, setNewMemberColor] = useState('#2563eb');
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState('');
 
-  const avatarColors = ['#2563eb', '#0891b2', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#4f46e5'];
+  // Delete Member Confirm Modal State
+  const [memberToDelete, setMemberToDelete] = useState(null);
+  const [isDeletingMember, setIsDeletingMember] = useState(false);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [membersData, projectsData] = await Promise.all([
+      const [membersData, projectsData, usersData] = await Promise.all([
         api.getAllMembers(),
-        api.getProjects()
+        api.getProjects(),
+        api.getUsers()
       ]);
       setMembers(membersData || []);
       setProjects(projectsData || []);
+      const regular = (usersData || []).filter(u => (u.role || '').toLowerCase() !== 'admin');
+      setRegisteredUsers(regular);
       if (projectsData && projectsData.length > 0 && !newMemberProjectId) {
         setNewMemberProjectId(projectsData[0].id.toString());
       }
@@ -67,13 +75,21 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
     fetchData();
   }, [refreshTrigger]);
 
-  const handleDeleteMember = async (memberId, memberName) => {
-    if (!window.confirm(`Are you sure you want to remove ${memberName}?`)) return;
+  const handleDeleteMember = (memberId, memberName) => {
+    setMemberToDelete({ id: memberId, name: memberName || 'this team member' });
+  };
+
+  const handleConfirmDeleteMember = async () => {
+    if (!memberToDelete) return;
+    setIsDeletingMember(true);
     try {
-      await api.deleteMember(memberId);
-      fetchData();
+      await api.deleteMember(memberToDelete.id);
+      await fetchData();
+      setMemberToDelete(null);
     } catch (err) {
-      alert('Error removing member: ' + err.message);
+      console.error('Error removing member:', err);
+    } finally {
+      setIsDeletingMember(false);
     }
   };
 
@@ -86,27 +102,55 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
     }
   };
 
+  const handleSelectUser = (e) => {
+    const uId = e.target.value;
+    setSelectedUserId(uId);
+    setModalError('');
+    if (!uId) return;
+
+    const found = registeredUsers.find(u => u.id.toString() === uId.toString());
+    if (found) {
+      setNewMemberName(found.name || found.username);
+      setNewMemberEmail(found.email || '');
+    }
+  };
+
   const handleCreateMember = async (e) => {
     e.preventDefault();
     setModalError('');
 
     if (!newMemberName.trim() || !newMemberEmail.trim() || !newMemberProjectId) {
-      setModalError('Please fill in name, email, and choose a project');
+      setModalError('Please select a registered user and choose a project');
+      return;
+    }
+
+    // Validate that the user is actually registered
+    const matchedUser = registeredUsers.find(
+      u => (u.email && u.email.toLowerCase() === newMemberEmail.trim().toLowerCase()) ||
+           (u.name && u.name.toLowerCase() === newMemberName.trim().toLowerCase()) ||
+           (u.username && u.username.toLowerCase() === newMemberName.trim().toLowerCase())
+    );
+
+    if (!matchedUser) {
+      setModalError(`"${newMemberName.trim()}" is not a registered user. Please register the user in User Management first before assigning them to a project.`);
       return;
     }
 
     setModalLoading(true);
     try {
+      const targetProjId = parseInt(newMemberProjectId);
+      const targetTheme = getProjectTheme(targetProjId);
       await api.createMember({
-        project_id: parseInt(newMemberProjectId),
-        name: newMemberName.trim(),
-        email: newMemberEmail.trim(),
+        project_id: targetProjId,
+        name: matchedUser.name || matchedUser.username,
+        email: matchedUser.email,
         role: newMemberRole,
-        avatar_color: newMemberColor
+        avatar_color: targetTheme.bg
       });
       setShowAddModal(false);
       setNewMemberName('');
       setNewMemberEmail('');
+      setSelectedUserId('');
       fetchData();
     } catch (err) {
       setModalError(err.message || 'Failed to add member');
@@ -130,6 +174,9 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
   });
 
   // Calculate team metrics
+  const uniqueEngineersCount = registeredUsers.length > 0
+    ? registeredUsers.length
+    : new Set(members.map(m => (m.email || m.name || '').toLowerCase())).size;
   const totalAssignedTasks = members.reduce((acc, m) => acc + (m.tasks_assigned || 0), 0);
   const totalCompletedTasks = members.reduce((acc, m) => acc + (m.tasks_completed || 0), 0);
   const overallTeamRate = totalAssignedTasks > 0 ? Math.round((totalCompletedTasks / totalAssignedTasks) * 100) : 0;
@@ -180,10 +227,10 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
               Total Engineers
             </span>
             <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
-              {members.length}
+              {uniqueEngineersCount}
             </div>
             <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)' }}>
-              Across {projects.length} {projects.length === 1 ? 'project' : 'projects'}
+              Registered in User Management
             </span>
           </div>
           <div style={{
@@ -393,6 +440,7 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
             const isExpanded = expandedMemberId === m.id;
             const completionRate = m.completion_rate || 0;
             const tasksList = m.tasks || [];
+            const projectTheme = getProjectTheme(m.project_id, m.project_name);
 
             return (
               <div
@@ -403,6 +451,7 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                   backgroundColor: 'var(--bg-card)',
                   borderRadius: '12px',
                   border: '1px solid var(--border-subtle)',
+                  borderLeft: `4px solid ${projectTheme.bg}`,
                   padding: '1.35rem',
                   boxShadow: 'var(--shadow-sm)',
                   display: 'flex',
@@ -412,8 +461,8 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                   cursor: 'pointer'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent-primary)';
-                  e.currentTarget.style.boxShadow = '0 6px 18px rgba(37, 99, 235, 0.12)';
+                  e.currentTarget.style.borderColor = projectTheme.border;
+                  e.currentTarget.style.boxShadow = `0 6px 18px ${projectTheme.light}`;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = 'var(--border-subtle)';
@@ -429,7 +478,7 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                         width: '42px',
                         height: '42px',
                         borderRadius: '11px',
-                        backgroundColor: m.avatar_color || '#2563eb',
+                        backgroundColor: projectTheme.bg,
                         color: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
@@ -437,7 +486,7 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                         fontWeight: 800,
                         fontSize: '1rem',
                         flexShrink: 0,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        boxShadow: `0 2px 8px ${projectTheme.border}`
                       }}>
                         {m.name.slice(0, 2).toUpperCase()}
                       </div>
@@ -449,7 +498,7 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                         <div style={{
                           fontSize: '0.725rem',
                           fontWeight: 600,
-                          color: 'var(--accent-primary)',
+                          color: projectTheme.text,
                           marginBottom: '0.15rem',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
@@ -474,8 +523,8 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                         style={{
                           width: '28px', height: '28px',
                           borderRadius: '6px',
-                          backgroundColor: 'var(--accent-primary-light)',
-                          color: 'var(--accent-primary)',
+                          backgroundColor: projectTheme.light,
+                          color: projectTheme.text,
                           border: 'none',
                           cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center'
@@ -518,17 +567,17 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                         gap: '0.4rem',
                         padding: '0.2rem 0.55rem',
                         borderRadius: '6px',
-                        backgroundColor: 'var(--bg-muted)',
-                        border: '1px solid var(--border-subtle)',
+                        backgroundColor: projectTheme.light,
+                        border: `1px solid ${projectTheme.border}`,
                         fontSize: '0.75rem',
-                        color: 'var(--text-main)',
-                        fontWeight: 600
+                        color: projectTheme.text,
+                        fontWeight: 700
                       }}
                       title="Click to view project workspace"
                     >
-                      <FolderKanban size={13} color="var(--accent-primary)" />
+                      <FolderKanban size={13} color={projectTheme.bg} />
                       <span>{m.project_code || 'PRJ'}</span>
-                      <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>&bull; {m.project_name}</span>
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>&bull; {m.project_name}</span>
                     </button>
                   </div>
 
@@ -759,6 +808,38 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                 </select>
               </div>
 
+              {/* Select Registered User */}
+              <div style={{ marginBottom: '1.2rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                  <span>Select Registered Contributor *</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                    {registeredUsers.length} available
+                  </span>
+                </label>
+                <select
+                  className="form-input"
+                  value={selectedUserId}
+                  onChange={handleSelectUser}
+                  style={{
+                    backgroundColor: 'var(--bg-app)',
+                    borderColor: selectedUserId ? 'var(--accent-primary)' : 'var(--border-subtle)',
+                    fontWeight: 600
+                  }}
+                >
+                  <option value="">-- Choose a registered contributor --</option>
+                  {registeredUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name || u.username} ({u.email || `@${u.username}`})
+                    </option>
+                  ))}
+                </select>
+                {registeredUsers.length === 0 && (
+                  <p style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '0.35rem' }}>
+                    No non-admin registered users found. First register them in User Management.
+                  </p>
+                )}
+              </div>
+
               {/* Full Name */}
               <div style={{ marginBottom: '1.2rem' }}>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
@@ -771,6 +852,7 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                   value={newMemberName}
                   onChange={(e) => {
                     setNewMemberName(e.target.value);
+                    setSelectedUserId('');
                     if (!newMemberEmail) {
                       const slug = e.target.value.toLowerCase().replace(/\s+/g, '.');
                       if (slug) setNewMemberEmail(`${slug}@softwarehouse.dev`);
@@ -790,7 +872,10 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                   className="form-input"
                   placeholder="jordan.h@softwarehouse.dev"
                   value={newMemberEmail}
-                  onChange={(e) => setNewMemberEmail(e.target.value)}
+                  onChange={(e) => {
+                    setNewMemberEmail(e.target.value);
+                    setSelectedUserId('');
+                  }}
                   required
                 />
               </div>
@@ -811,30 +896,39 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                 </select>
               </div>
 
-              {/* Avatar Color */}
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.45rem' }}>
-                  Avatar Color
-                </label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {avatarColors.map((col) => (
-                    <button
-                      key={col}
-                      type="button"
-                      onClick={() => setNewMemberColor(col)}
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        backgroundColor: col,
-                        border: newMemberColor === col ? '3px solid #ffffff' : '2px solid transparent',
-                        boxShadow: newMemberColor === col ? `0 0 6px ${col}` : 'none',
-                        transform: newMemberColor === col ? 'scale(1.15)' : 'scale(1)'
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
+              {/* Unified Project Theme Indicator */}
+              {(() => {
+                const modalTheme = getProjectTheme(parseInt(newMemberProjectId) || 0);
+                return (
+                  <div style={{
+                    marginBottom: '1.5rem',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '10px',
+                    backgroundColor: modalTheme.light,
+                    border: `1px solid ${modalTheme.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem'
+                  }}>
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '6px',
+                      backgroundColor: modalTheme.bg,
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.15)',
+                      flexShrink: 0
+                    }} />
+                    <div style={{ fontSize: '0.785rem', color: 'var(--text-main)' }}>
+                      <span style={{ fontWeight: 700, color: modalTheme.text }}>
+                        Unified Team Theme: {modalTheme.name}
+                      </span>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '1px' }}>
+                        All members in this project automatically share this color highlight.
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem' }}>
                 <button type="button" onClick={() => setShowAddModal(false)} className="btn-secondary">
@@ -867,6 +961,18 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
           }}
         />
       )}
+
+      {/* Premium Confirm Delete Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!memberToDelete}
+        title="Remove Team Member"
+        itemName={memberToDelete?.name}
+        itemType="member"
+        confirmText="Remove Member"
+        isDeleting={isDeletingMember}
+        onConfirm={handleConfirmDeleteMember}
+        onClose={() => !isDeletingMember && setMemberToDelete(null)}
+      />
     </div>
   );
 }

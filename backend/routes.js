@@ -56,12 +56,12 @@ router.get('/projects/:id', getProject);
 router.post('/projects', addProject);
 router.put('/projects/:id', editProject);
 router.delete('/projects/:id', removeProjectHandler);
-// Backward compatibility aliases
+// Backward compatibility aliases — specific paths MUST come before /:id wildcard
 router.post('/projects/list', listProjects);
 router.post('/projects/detail', getProject);
 router.post('/projects/update', editProject);
-router.post('/projects/:id', editProject);
 router.post('/projects/delete', removeProjectHandler);
+router.post('/projects/:id', editProject);
 
 // ==========================================
 // 5. MEMBERS (Standard RESTful Routes)
@@ -70,12 +70,12 @@ router.get('/members', listMembers);
 router.post('/members', createMember);
 router.put('/members/:id', editMemberHandler);
 router.delete('/members/:id', removeMemberHandler);
-// Backward compatibility aliases
+// Backward compatibility aliases — specific paths MUST come before /:id wildcard
 router.post('/members/list', listMembers);
-router.post('/projects/:id/members', createMember);
 router.post('/members/update', editMemberHandler);
-router.post('/members/:id', editMemberHandler);
 router.post('/members/delete', removeMemberHandler);
+router.post('/projects/:id/members', createMember);
+router.post('/members/:id', editMemberHandler);
 
 // ==========================================
 // 6. TASKS (Standard RESTful Routes)
@@ -84,13 +84,13 @@ router.get('/tasks', listTasks);
 router.post('/tasks', addTask);
 router.put('/tasks/:id', editTask);
 router.delete('/tasks/:id', removeTaskHandler);
-// Backward compatibility aliases
+// Backward compatibility aliases — specific paths MUST come before /:id wildcard
 router.post('/tasks/list', listTasks);
-router.post('/projects/:id/tasks', addTask);
 router.post('/tasks/update', editTask);
 router.post('/tasks/status', updateTaskStatus);
-router.post('/tasks/:id', editTask);
 router.post('/tasks/delete', removeTaskHandler);
+router.post('/projects/:id/tasks', addTask);
+router.post('/tasks/:id', editTask);
 
 // ==========================================
 // 7. ACTIVITY AUDIT STREAM

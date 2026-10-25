@@ -5,6 +5,7 @@
 const {
   fetchAllProjects,
   fetchProjectById,
+  findProjectByName,
   insertProject,
   modifyProject,
   removeProject
@@ -21,12 +22,29 @@ async function getProjectById(id) {
 }
 
 async function createProject(data) {
+  const cleanName = (data.name || '').trim();
+  if (cleanName) {
+    const existing = await findProjectByName(cleanName);
+    if (existing) {
+      throw new Error(`A project with the name "${cleanName}" already exists. Please choose a unique project name.`);
+    }
+  }
+
   const newId = await insertProject(data);
   return { id: newId, message: 'Project created successfully!' };
 }
 
 async function updateProject(id, data) {
-  await modifyProject(parseInt(id), data);
+  const projectId = parseInt(id);
+  if (data.name && data.name.trim()) {
+    const cleanName = data.name.trim();
+    const existing = await findProjectByName(cleanName, projectId);
+    if (existing) {
+      throw new Error(`A project with the name "${cleanName}" already exists. Please choose a unique project name.`);
+    }
+  }
+
+  await modifyProject(projectId, data);
   return { message: 'Project updated successfully' };
 }
 

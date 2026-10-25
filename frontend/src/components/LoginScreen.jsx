@@ -81,7 +81,13 @@ export default function LoginScreen({ onLoginSuccess }) {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '1.5rem',
-      backgroundColor: 'var(--bg-app)'
+      backgroundColor: '#f4f6fa',
+      backgroundImage: `
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.88) 0%, rgba(240, 244, 249, 0.90) 100%),
+        url('/whatsapp-pattern.png')
+      `,
+      backgroundRepeat: 'repeat',
+      backgroundSize: 'cover, 331px 298px'
     }}>
       <div 
         className="glass-card"

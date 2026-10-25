@@ -16,6 +16,7 @@ import {
 import { api } from '../services/api';
 import { getDeadlineInfo, formatDate } from '../utils/dateUtils';
 import TaskDetailModal from '../components/TaskDetailModal';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 export default function AllTasksView({ onSelectProject, refreshTrigger }) {
   const [tasks, setTasks] = useState([]);
@@ -41,6 +42,8 @@ export default function AllTasksView({ onSelectProject, refreshTrigger }) {
   });
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [taskToDelete, setTaskToDelete] = useState(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
 
   const fetchTasksData = async () => {
     try {
@@ -76,13 +79,21 @@ export default function AllTasksView({ onSelectProject, refreshTrigger }) {
     }
   };
 
-  const handleDeleteTask = async (taskId) => {
-    if (!window.confirm('Delete this task?')) return;
+  const handleDeleteTask = (taskId, taskTitle) => {
+    setTaskToDelete({ id: taskId, title: taskTitle });
+  };
+
+  const handleConfirmDeleteTask = async () => {
+    if (!taskToDelete) return;
+    setIsDeletingTask(true);
     try {
-      await api.deleteTask(taskId);
+      await api.deleteTask(taskToDelete.id);
+      setTaskToDelete(null);
       fetchTasksData();
     } catch (err) {
-      alert('Error deleting task: ' + err.message);
+      console.error('Error deleting task:', err);
+    } finally {
+      setIsDeletingTask(false);
     }
   };
 
@@ -117,20 +128,33 @@ export default function AllTasksView({ onSelectProject, refreshTrigger }) {
     }
   };
 
-  const filteredTasks = tasks.filter((t) => {
-    const matchesSearch = searchQuery
-      ? t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (t.assignee && t.assignee.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (t.project_name && t.project_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (t.project_code && t.project_code.toLowerCase().includes(searchQuery.toLowerCase()))
-      : true;
+  const PRIORITY_ORDER = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 
-    const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
-    const matchesProject = projectFilter === 'ALL' || t.project_id.toString() === projectFilter;
-    const matchesPriority = priorityFilter === 'ALL' || t.priority === priorityFilter;
+  const filteredTasks = tasks
+    .filter((t) => {
+      const matchesSearch = searchQuery
+        ? t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (t.assignee && t.assignee.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (t.project_name && t.project_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (t.project_code && t.project_code.toLowerCase().includes(searchQuery.toLowerCase()))
+        : true;
 
-    return matchesSearch && matchesStatus && matchesProject && matchesPriority;
-  });
+      const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
+      const matchesProject = projectFilter === 'ALL' || t.project_id.toString() === projectFilter;
+      const matchesPriority = priorityFilter === 'ALL' || t.priority === priorityFilter;
+
+      return matchesSearch && matchesStatus && matchesProject && matchesPriority;
+    })
+    .sort((a, b) => {
+      // Completed tasks always go to the bottom
+      const aDone = a.status === 'done' ? 1 : 0;
+      const bDone = b.status === 'done' ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      // Sort by priority: Urgent → High → Medium → Low
+      const aPri = PRIORITY_ORDER[a.priority] ?? 2;
+      const bPri = PRIORITY_ORDER[b.priority] ?? 2;
+      return aPri - bPri;
+    });
 
   const todoCount = tasks.filter(t => t.status === 'todo').length;
   const inProgressCount = tasks.filter(t => t.status === 'in_progress').length;
@@ -518,7 +542,7 @@ export default function AllTasksView({ onSelectProject, refreshTrigger }) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteTask(t.id);
+                      handleDeleteTask(t.id, t.title);
                     }}
                     style={{ padding: '0.3rem', color: 'var(--text-dim)' }}
                     onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-danger)'}
@@ -641,10 +665,10 @@ export default function AllTasksView({ onSelectProject, refreshTrigger }) {
                     Priority
                   </label>
                   <select className="form-input" value={newPriority} onChange={(e) => setNewPriority(e.target.value)}>
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
                     <option value="Urgent">Urgent</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
                   </select>
                 </div>
               </div>
@@ -728,6 +752,17 @@ export default function AllTasksView({ onSelectProject, refreshTrigger }) {
           }}
         />
       )}
+      {/* Premium Task Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!taskToDelete}
+        title="Delete Task"
+        itemName={taskToDelete?.title}
+        itemType="task"
+        confirmText="Delete Task"
+        isDeleting={isDeletingTask}
+        onConfirm={handleConfirmDeleteTask}
+        onClose={() => !isDeletingTask && setTaskToDelete(null)}
+      />
     </div>
   );
 }

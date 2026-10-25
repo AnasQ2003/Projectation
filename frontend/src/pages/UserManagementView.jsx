@@ -19,6 +19,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { api } from '../services/api';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 export default function UserManagementView({ refreshTrigger }) {
   const [users, setUsers] = useState([]);
@@ -45,6 +46,10 @@ export default function UserManagementView({ refreshTrigger }) {
   const [editPassword, setEditPassword] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [editModalError, setEditModalError] = useState('');
+
+  // Delete User Modal State
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   const loadUsers = async (silent = false) => {
     try {
@@ -210,23 +215,27 @@ export default function UserManagementView({ refreshTrigger }) {
   };
 
   // Delete User
-  const handleDeleteUser = async (u) => {
+  const handleDeleteUser = (u) => {
     const isPrimaryAdmin = u.role === 'Admin' || u.username === 'admin';
     if (isPrimaryAdmin) {
       alert('The primary Administrator account cannot be removed.');
       return;
     }
+    setUserToDelete(u);
+  };
 
-    if (!window.confirm(`Are you sure you want to permanently delete user account "${u.name}" (@${u.username})?`)) {
-      return;
-    }
-
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
     try {
-      await api.deleteUser(u.id);
-      setSuccessMsg(`User "${u.name}" was removed successfully.`);
+      await api.deleteUser(userToDelete.id);
+      setSuccessMsg(`User "${userToDelete.name}" was removed successfully.`);
+      setUserToDelete(null);
       await loadUsers();
     } catch (err) {
       setError(err.message || 'Failed to delete user');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -848,6 +857,18 @@ export default function UserManagementView({ refreshTrigger }) {
           </div>
         </div>
       )}
+
+      {/* Premium Confirm Delete Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!userToDelete}
+        title="Delete User Account"
+        itemName={userToDelete?.name}
+        itemType="user"
+        confirmText="Delete User"
+        isDeleting={isDeletingUser}
+        onConfirm={handleConfirmDeleteUser}
+        onClose={() => !isDeletingUser && setUserToDelete(null)}
+      />
     </div>
   );
 }
