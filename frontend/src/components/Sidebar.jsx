@@ -8,6 +8,7 @@ import {
   ChevronLeft, 
   ChevronRight,
   ShieldCheck,
+  TrendingUp,
   X
 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ export default function Sidebar({
   const menuItems = [
     { id: 'projects', label: 'Projects & Hub', icon: FolderKanban, badge: projectCount },
     { id: 'tasks', label: 'All Tasks', icon: CheckSquare },
+    { id: 'team-progress', label: 'Team Progress', icon: TrendingUp },
     { id: 'team', label: 'Team Members', icon: Users },
     { id: 'timeline', label: 'Roadmap & Deadlines', icon: Clock }
   ];
@@ -39,13 +41,16 @@ export default function Sidebar({
       className={`sidebar-responsive${mobileOpen ? ' open' : ''}`}
       style={{
         width: collapsed ? '72px' : '240px',
-        backgroundColor: '#ffffff',
-        borderRight: '1px solid var(--border-subtle)',
+        background: 'rgba(255, 255, 255, 0.72)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        borderRight: '1px solid rgba(255, 255, 255, 0.85)',
+        boxShadow: '4px 0 28px rgba(31, 38, 135, 0.04)',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
         maxHeight: '100%',
-        transition: 'width 0.2s ease',
+        transition: 'width 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         zIndex: 50,
         flexShrink: 0,
         overflow: 'hidden'
@@ -54,7 +59,7 @@ export default function Sidebar({
       {/* Brand Header */}
       <div style={{
         padding: '1.25rem 1rem',
-        borderBottom: '1px solid var(--border-subtle)',
+        borderBottom: '1px solid rgba(226, 232, 240, 0.65)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'space-between',
@@ -156,14 +161,16 @@ export default function Sidebar({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.65rem',
-                padding: '0.55rem 0.75rem',
-                borderRadius: '8px',
-                backgroundColor: isActive ? 'var(--accent-primary-light)' : 'transparent',
+                padding: '0.6rem 0.8rem',
+                borderRadius: '10px',
+                backgroundColor: isActive ? 'rgba(239, 246, 255, 0.90)' : 'transparent',
                 color: isActive ? 'var(--accent-primary)' : 'var(--text-muted)',
                 fontWeight: isActive ? 600 : 500,
                 fontSize: '0.875rem',
                 justifyContent: collapsed ? 'center' : 'flex-start',
-                border: isActive ? '1px solid var(--accent-primary-border)' : '1px solid transparent'
+                border: isActive ? '1px solid rgba(191, 219, 254, 0.85)' : '1px solid transparent',
+                boxShadow: isActive ? '0 4px 14px rgba(37, 99, 235, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.95)' : 'none',
+                transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
               title={collapsed ? item.label : undefined}
             >
@@ -177,12 +184,13 @@ export default function Sidebar({
 
               {!collapsed && item.badge !== undefined && (
                 <span style={{
-                  backgroundColor: isActive ? 'var(--accent-primary)' : 'var(--bg-muted)',
+                  backgroundColor: isActive ? 'var(--accent-primary)' : 'rgba(241, 245, 249, 0.8)',
                   color: isActive ? '#ffffff' : 'var(--text-muted)',
                   fontSize: '0.7rem',
                   padding: '0.1rem 0.45rem',
                   borderRadius: '999px',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  boxShadow: isActive ? '0 2px 6px rgba(37, 99, 235, 0.2)' : 'none'
                 }}>
                   {item.badge}
                 </span>
@@ -194,9 +202,11 @@ export default function Sidebar({
 
       {/* Admin Profile — locked at bottom of sidebar */}
       <div style={{
-        padding: '0.85rem',
-        borderTop: '1px solid var(--border-subtle)',
-        backgroundColor: 'var(--bg-subtle)',
+        padding: '0.85rem 1rem',
+        borderTop: '1px solid rgba(226, 232, 240, 0.65)',
+        backgroundColor: 'rgba(255, 255, 255, 0.50)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
         flexShrink: 0
       }}>
         <div style={{

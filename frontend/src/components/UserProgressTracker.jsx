@@ -25,11 +25,18 @@ import { getDeadlineInfo } from '../utils/dateUtils';
  * Displays live progress of registered users, active sprint deliverables,
  * and completion dates vs deadlines.
  */
-export default function UserProgressTracker({ onSelectProject, refreshTrigger }) {
+export default function UserProgressTracker({ 
+  onSelectProject, 
+  refreshTrigger,
+  searchQuery: externalSearch,
+  setSearchQuery: setExternalSearch
+}) {
   const [usersProgress, setUsersProgress] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalSearch, setInternalSearch] = useState('');
+  const searchQuery = externalSearch !== undefined ? externalSearch : internalSearch;
+  const setSearchQuery = setExternalSearch || setInternalSearch;
   const [selectedUserFilter, setSelectedUserFilter] = useState('ALL');
   const [statusTab, setStatusTab] = useState('ALL'); // 'ALL' | 'DONE' | 'IN_PROGRESS'
 
@@ -152,8 +159,18 @@ export default function UserProgressTracker({ onSelectProject, refreshTrigger })
   };
 
   return (
-    <div style={{ marginTop: '0.5rem' }}>
-      {/* 4 Summary Cards */}
+    <div className="animate-fade-in page-container" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Header Banner */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', margin: 0 }}>
+          Team Progress & Deliverables Tracker
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.35rem' }}>
+          Real-time overview of registered users, active deliverables, and deadline completion audit
+        </p>
+      </div>
+
+      {/* 4 Summary Cards — The Focused Single Row */}
       <div className="stats-row" style={{ marginBottom: '1.5rem' }}>
         {/* Card 1: Active Contributors */}
         <div className="glass-card" style={{ padding: '1.15rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -239,31 +256,63 @@ export default function UserProgressTracker({ onSelectProject, refreshTrigger })
           </div>
         </div>
 
-        {/* Card 4: Team Sprint Velocity */}
-        <div className="glass-card" style={{ padding: '1.15rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Sprint Velocity
-            </span>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
-              {teamVelocity}%
-            </div>
-            <span style={{ fontSize: '0.725rem', color: '#059669', fontWeight: 600 }}>
-              Overall completion rate
-            </span>
-          </div>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '11px',
-            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        {/* Card 4: Overall Progress Ring */}
+        <div
+          className="glass-card"
+          style={{
+            padding: '1.15rem 1.25rem',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            color: '#059669',
-            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
-          }}>
-            <TrendingUp size={20} />
+            justifyContent: 'space-between'
+          }}
+        >
+          <div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Overall Progress
+            </span>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
+              {teamVelocity}
+              <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dim)' }}>%</span>
+            </div>
+            <span style={{
+              fontSize: '0.725rem',
+              fontWeight: 600,
+              color: teamVelocity === 100 ? '#059669' : teamVelocity >= 50 ? '#059669' : '#d97706'
+            }}>
+              {teamVelocity === 100 ? '✓ All deliverables done' : teamVelocity >= 50 ? 'Strong momentum' : 'In progress'}
+            </span>
+          </div>
+          {/* SVG Circular Progress Ring */}
+          <div style={{ position: 'relative', width: '48px', height: '48px', flexShrink: 0 }}>
+            <svg width="48" height="48" viewBox="0 0 48 48" style={{ transform: 'rotate(-90deg)' }}>
+              {/* Track */}
+              <circle
+                cx="24" cy="24" r="19"
+                fill="none"
+                stroke="rgba(16,185,129,0.12)"
+                strokeWidth="5"
+              />
+              {/* Progress arc */}
+              <circle
+                cx="24" cy="24" r="19"
+                fill="none"
+                stroke={teamVelocity === 100 ? '#059669' : teamVelocity >= 50 ? '#10b981' : '#2563eb'}
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 19}`}
+                strokeDashoffset={`${2 * Math.PI * 19 * (1 - teamVelocity / 100)}`}
+                style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+              />
+            </svg>
+            {/* Center label */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.625rem', fontWeight: 800,
+              color: teamVelocity === 100 ? '#059669' : teamVelocity >= 50 ? '#059669' : '#2563eb'
+            }}>
+              {teamVelocity}%
+            </div>
           </div>
         </div>
       </div>

@@ -18,7 +18,6 @@ const CACHEABLE_POST_ENDPOINTS = new Set([
   '/analytics/summary',
   '/activity/list',
   '/categories/list',
-  '/notifications',
   '/system/names',
   '/system/health',
 ]);
@@ -159,7 +158,16 @@ async function request(url, options = {}) {
       'color:#94a3b8'
     );
 
-    if (method === 'POST' && isCacheablePost(url)) setCache(cacheKey, data);
+    if (method === 'POST') {
+      if (isCacheablePost(url)) {
+        setCache(cacheKey, data);
+      } else {
+        _cache.clear();
+        if (typeof window !== 'undefined' && !url.includes('/notifications')) {
+          window.dispatchEvent(new CustomEvent('projectation-refresh'));
+        }
+      }
+    }
     return data;
   }
 
@@ -226,6 +234,7 @@ export const api = {
 
   // ── 5. Members ──
   async getAllMembers() { return request(`${API_BASE_URL}/members/list`, { method: 'POST', body: {} }); },
+  async getMembers() { return this.getAllMembers(); },
   async addMember(projectId, memberData) {
     const r = await request(`${API_BASE_URL}/members`, { method: 'POST', body: { ...memberData, project_id: projectId } });
     invalidateCache('members', 'names'); return r;
@@ -281,11 +290,17 @@ export const api = {
   },
 
   // ── 8. Notifications ──
-  async getNotifications(role = 'Admin', userName = '') {
-    return request(`${API_BASE_URL}/notifications`, { method: 'POST', body: { role, userName } });
+  async getNotifications(role = 'Admin', userIdentifiers = {}) {
+    const payload = typeof userIdentifiers === 'string'
+      ? { role, userName: userIdentifiers }
+      : { role, ...(userIdentifiers || {}) };
+    return request(`${API_BASE_URL}/notifications`, { method: 'POST', body: payload });
   },
-  async markNotificationRead(id = null, all = false, role = 'Admin', userName = '') {
-    return request(`${API_BASE_URL}/notifications/read`, { method: 'POST', body: { id, all, role, userName } });
+  async markNotificationRead(id = null, all = false, role = 'Admin', userIdentifiers = {}) {
+    const payload = typeof userIdentifiers === 'string'
+      ? { id, all, role, userName: userIdentifiers }
+      : { id, all, role, ...(userIdentifiers || {}) };
+    return request(`${API_BASE_URL}/notifications/read`, { method: 'POST', body: payload });
   },
   async clearNotifications(role = 'Admin') {
     return request(`${API_BASE_URL}/notifications/clear`, { method: 'POST', body: { role } });

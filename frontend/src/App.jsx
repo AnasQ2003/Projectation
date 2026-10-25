@@ -11,6 +11,7 @@ import ProjectDetail from './components/ProjectDetail';
 import NewProjectModal from './components/NewProjectModal';
 import UserPortalView from './components/UserPortalView';
 import UserManagementView from './pages/UserManagementView';
+import UserProgressTracker from './components/UserProgressTracker';
 import { api } from './services/api';
 import { encryptClientData, decryptClientData } from './utils/crypto';
 
@@ -71,7 +72,7 @@ export default function App() {
     localStorage.setItem('projectation_theme', 'light');
 
     // Immediate backend handshake — always visible in DevTools Network tab on startup
-    api.ping().catch(() => {});
+    api.ping().catch(() => { });
 
     // Background session verification — if token valid, refresh user
     const storedToken = localStorage.getItem('projectation_token');
@@ -80,7 +81,7 @@ export default function App() {
       try {
         const dec = decryptClientData(storedToken);
         if (dec) token = dec;
-      } catch {}
+      } catch { }
 
       api.verifyToken(token)
         .then((res) => {
@@ -123,14 +124,59 @@ export default function App() {
   const isAdmin = user.role === 'Admin' || (user.role && user.role.includes('Admin'));
   if (!isAdmin) {
     return (
-      <UserPortalView 
-        user={user} 
-        onLogout={handleLogout} 
-        refreshTrigger={refreshCount} 
-        onRefresh={triggerRefresh} 
+      <UserPortalView
+        user={user}
+        onLogout={handleLogout}
+        refreshTrigger={refreshCount}
+        onRefresh={triggerRefresh}
       />
     );
   }
+
+  // Dynamic screen-aware search metadata
+  const getScreenSearchMeta = () => {
+    if (selectedProjectId) {
+      return {
+        screenLabel: 'Project',
+        placeholder: 'Search tasks or members in this project...'
+      };
+    }
+    switch (activeTab) {
+      case 'tasks':
+        return {
+          screenLabel: 'Tasks',
+          placeholder: 'Search...'
+        };
+      case 'team-progress':
+        return {
+          screenLabel: 'Progress',
+          placeholder: 'Search...'
+        };
+      case 'team':
+        return {
+          screenLabel: 'Team',
+          placeholder: 'Search...'
+        };
+      case 'timeline':
+        return {
+          screenLabel: 'Roadmap',
+          placeholder: 'Search...'
+        };
+      case 'users':
+        return {
+          screenLabel: 'Users',
+          placeholder: 'Search...'
+        };
+      case 'projects':
+      default:
+        return {
+          screenLabel: 'Projects',
+          placeholder: 'Search...'
+        };
+    }
+  };
+
+  const searchMeta = getScreenSearchMeta();
 
   return (
     <div className="app-shell">
@@ -150,6 +196,7 @@ export default function App() {
         setActiveTab={(tab) => {
           setActiveTab(tab);
           setSelectedProjectId(null);
+          setSearchQuery('');
           setSidebarMobileOpen(false);
         }}
         user={user}
@@ -164,9 +211,14 @@ export default function App() {
           user={user}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          onOpenNewProject={() => setShowNewProjectModal(true)}
+          searchPlaceholder={searchMeta.placeholder}
+          screenLabel={searchMeta.screenLabel}
+          onOpenNewProject={activeTab === 'projects' && !selectedProjectId ? () => setShowNewProjectModal(true) : null}
           onToggleSidebar={() => setSidebarMobileOpen(prev => !prev)}
-          onSelectProject={(id) => setSelectedProjectId(id)}
+          onSelectProject={(id) => {
+            setSelectedProjectId(id);
+            setSearchQuery('');
+          }}
           refreshTrigger={refreshCount}
         />
 
@@ -175,40 +227,75 @@ export default function App() {
           {selectedProjectId ? (
             <ProjectDetail
               projectId={selectedProjectId}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
               onBack={() => {
                 setSelectedProjectId(null);
+                setSearchQuery('');
                 triggerRefresh();
               }}
               onProjectDeleted={() => {
                 setSelectedProjectId(null);
+                setSearchQuery('');
                 triggerRefresh();
               }}
             />
           ) : activeTab === 'tasks' ? (
             <AllTasksView
-              onSelectProject={(id) => setSelectedProjectId(id)}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSelectProject={(id) => {
+                setSelectedProjectId(id);
+                setSearchQuery('');
+              }}
+              refreshTrigger={refreshCount}
+            />
+          ) : activeTab === 'team-progress' ? (
+            <UserProgressTracker
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSelectProject={(id) => {
+                setSelectedProjectId(id);
+                setSearchQuery('');
+              }}
               refreshTrigger={refreshCount}
             />
           ) : activeTab === 'team' ? (
             <TeamView
-              onSelectProject={(id) => setSelectedProjectId(id)}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSelectProject={(id) => {
+                setSelectedProjectId(id);
+                setSearchQuery('');
+              }}
               refreshTrigger={refreshCount}
             />
           ) : activeTab === 'timeline' ? (
             <RoadmapView
-              onSelectProject={(id) => setSelectedProjectId(id)}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSelectProject={(id) => {
+                setSelectedProjectId(id);
+                setSearchQuery('');
+              }}
               refreshTrigger={refreshCount}
             />
           ) : activeTab === 'users' ? (
             <UserManagementView
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
               refreshTrigger={refreshCount}
             />
           ) : (
             <Dashboard
-              onSelectProject={(id) => setSelectedProjectId(id)}
+              onSelectProject={(id) => {
+                setSelectedProjectId(id);
+                setSearchQuery('');
+              }}
               onNavigate={(tab) => {
                 setActiveTab(tab);
                 setSelectedProjectId(null);
+                setSearchQuery('');
               }}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}

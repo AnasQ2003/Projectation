@@ -70,6 +70,23 @@ async function insertTask({ project_id, title, description, status, priority, as
     }
   }
 
+  // Notify admin about task creation
+  try {
+    const projRes = await executeQuery('SELECT name FROM Projects WHERE id = @id', { id: pid });
+    const pName = (projRes.recordset[0] && projRes.recordset[0].name) || `Project #${pid}`;
+    await executeQuery(
+      `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+       VALUES ('Admin', NULL, 'info', @title, @msg, 'Medium', @linkId, 0)`,
+      {
+        title: `✅ Task Created: ${title}`,
+        msg: `You created task "${title}" in "${pName}" (Assigned to: ${assignee || 'Unassigned'}).`,
+        linkId: pid
+      }
+    );
+  } catch (adminErr) {
+    console.error('Warning: Could not create admin task notification:', adminErr.message);
+  }
+
   return insRes.recordset[0].id;
 }
 
@@ -199,6 +216,25 @@ async function modifyTask(taskId, { title, description, status, priority, assign
  * Delete a task by ID and recalculate project progress in DB
  */
 async function removeTask(taskId) {
+  const tid = parseInt(taskId);
+  let taskTitle = `Task #${tid}`;
+  let projectName = 'Project';
+  let pid = null;
+
+  try {
+    const tRes = await executeQuery(`
+      SELECT t.title, t.project_id, p.name AS project_name
+      FROM Tasks t
+      LEFT JOIN Projects p ON p.id = t.project_id
+      WHERE t.id = @id
+    `, { id: tid });
+    if (tRes.recordset && tRes.recordset[0]) {
+      taskTitle = tRes.recordset[0].title || taskTitle;
+      projectName = tRes.recordset[0].project_name || projectName;
+      pid = tRes.recordset[0].project_id;
+    }
+  } catch (_) {}
+
   const query = `
     DECLARE @pid INT;
     SELECT @pid = project_id FROM Tasks WHERE id = @id;
@@ -217,7 +253,22 @@ async function removeTask(taskId) {
     END;
   `;
 
-  await executeQuery(query, { id: parseInt(taskId) });
+  await executeQuery(query, { id: tid });
+
+  // Notify admin about task deletion
+  try {
+    await executeQuery(
+      `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+       VALUES ('Admin', NULL, 'info', @title, @msg, 'Low', @linkId, 0)`,
+      {
+        title: `🗑️ Task Deleted: ${taskTitle}`,
+        msg: `You deleted task "${taskTitle}" from "${projectName}".`,
+        linkId: pid
+      }
+    );
+  } catch (err) {
+    console.error('Warning: Could not create admin task deletion notification:', err.message);
+  }
 }
 
 module.exports = {

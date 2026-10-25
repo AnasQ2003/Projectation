@@ -14,6 +14,9 @@ import {
   Lock, 
   Sparkles, 
   User, 
+  UserCheck,
+  FolderKanban,
+  Clock,
   X,
   RefreshCw,
   CheckCircle2
@@ -21,14 +24,21 @@ import {
 import { api } from '../services/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
-export default function UserManagementView({ refreshTrigger }) {
+export default function UserManagementView({ 
+  refreshTrigger,
+  searchQuery: externalSearch,
+  setSearchQuery: setExternalSearch
+}) {
   const [users, setUsers] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   // Search
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalSearch, setInternalSearch] = useState('');
+  const searchQuery = externalSearch !== undefined ? externalSearch : internalSearch;
+  const setSearchQuery = setExternalSearch || setInternalSearch;
 
   // Register Form State
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -55,8 +65,13 @@ export default function UserManagementView({ refreshTrigger }) {
     try {
       if (!silent) setLoading(true);
       setError('');
-      const data = await api.getUsers();
-      setUsers(data || []);
+      const fetchMembers = typeof api.getAllMembers === 'function' ? api.getAllMembers() : (typeof api.getMembers === 'function' ? api.getMembers() : Promise.resolve([]));
+      const [usersData, membersData] = await Promise.all([
+        api.getUsers(),
+        fetchMembers.catch(() => [])
+      ]);
+      setUsers(usersData || []);
+      setMembers(membersData || []);
     } catch (err) {
       setError(err.message || 'Failed to load users');
     } finally {
@@ -70,9 +85,14 @@ export default function UserManagementView({ refreshTrigger }) {
       try {
         setLoading(true);
         setError('');
-        const data = await api.getUsers();
+        const fetchMembers = typeof api.getAllMembers === 'function' ? api.getAllMembers() : (typeof api.getMembers === 'function' ? api.getMembers() : Promise.resolve([]));
+        const [usersData, membersData] = await Promise.all([
+          api.getUsers(),
+          fetchMembers.catch(() => [])
+        ]);
         if (!cancelled) {
-          setUsers(data || []);
+          setUsers(usersData || []);
+          setMembers(membersData || []);
           setLoading(false);
         }
       } catch (err) {
@@ -81,9 +101,14 @@ export default function UserManagementView({ refreshTrigger }) {
           setTimeout(async () => {
             if (cancelled) return;
             try {
-              const retryData = await api.getUsers();
+              const fetchMembers = typeof api.getAllMembers === 'function' ? api.getAllMembers() : (typeof api.getMembers === 'function' ? api.getMembers() : Promise.resolve([]));
+              const [retryData, retryMembers] = await Promise.all([
+                api.getUsers(),
+                fetchMembers.catch(() => [])
+              ]);
               if (!cancelled) {
                 setUsers(retryData || []);
+                setMembers(retryMembers || []);
                 setError('');
               }
             } catch (retryErr) {
@@ -253,7 +278,18 @@ export default function UserManagementView({ refreshTrigger }) {
     return matchesSearch;
   });
 
-  const teamMemberCount = users.filter(u => u.role !== 'Admin' && (!u.role || !u.role.includes('Admin')) && u.username !== 'admin').length;
+  const teamUsers = users.filter(u => u.role !== 'Admin' && (!u.role || !u.role.includes('Admin')) && u.username !== 'admin');
+  const totalCount = teamUsers.length;
+
+  const assignedEmailSet = new Set(members.map(m => (m.email || '').toLowerCase().trim()).filter(Boolean));
+  const assignedNameSet = new Set(members.map(m => (m.name || '').toLowerCase().trim()).filter(Boolean));
+
+  const assignedCount = teamUsers.filter(u => 
+    assignedEmailSet.has((u.email || '').toLowerCase().trim()) || 
+    assignedNameSet.has((u.name || '').toLowerCase().trim())
+  ).length;
+
+  const availableCount = Math.max(0, totalCount - assignedCount);
 
   return (
     <div className="animate-fade-in page-container" style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem 6rem 2rem' }}>
@@ -329,55 +365,122 @@ export default function UserManagementView({ refreshTrigger }) {
         </div>
       )}
 
-      {/* Metrics Row */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '1rem',
-        marginBottom: '1.5rem'
-      }}>
-        <div className="card" style={{ padding: '1.1rem 1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Registered Team Members</span>
-            <Users size={18} color="var(--accent-primary)" />
+      {/* Metrics Row — 4 Realistic, Directly Relatable Metric Boxes */}
+      <div className="stats-row" style={{ marginBottom: '1.5rem' }}>
+        {/* Card 1: Total Users */}
+        <div className="glass-card" style={{ padding: '1.15rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Total Users
+            </span>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
+              {totalCount}
+            </div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+              Registered members
+            </span>
           </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.35rem' }}>
-            {teamMemberCount}
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '11px',
+            backgroundColor: 'var(--accent-primary-light)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--accent-primary)',
+            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+            flexShrink: 0
+          }}>
+            <Users size={20} />
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Active database records</span>
         </div>
 
-        <div className="card" style={{ padding: '1.1rem 1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Portal Access Level</span>
-            <ShieldCheck size={18} color="#16a34a" />
+        {/* Card 2: Assigned to Projects */}
+        <div className="glass-card" style={{ padding: '1.15rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Assigned to Projects
+            </span>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#2563eb', marginTop: '0.2rem' }}>
+              {assignedCount}
+            </div>
+            <span style={{ fontSize: '0.725rem', color: '#2563eb', fontWeight: 600 }}>
+              Active in workspaces
+            </span>
           </div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#16a34a', marginTop: '0.65rem' }}>
-            Standard User
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '11px',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#2563eb',
+            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+            flexShrink: 0
+          }}>
+            <FolderKanban size={20} />
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Authorized for User Portal</span>
         </div>
 
-        <div className="card" style={{ padding: '1.1rem 1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Assigned System Role</span>
-            <User size={18} color="#6366f1" />
+        {/* Card 3: Available Users */}
+        <div className="glass-card" style={{ padding: '1.15rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Available Users
+            </span>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: availableCount > 0 ? '#d97706' : '#059669', marginTop: '0.2rem' }}>
+              {availableCount}
+            </div>
+            <span style={{ fontSize: '0.725rem', color: availableCount > 0 ? '#d97706' : '#059669', fontWeight: 600 }}>
+              {availableCount > 0 ? 'Ready for projects' : 'All members assigned'}
+            </span>
           </div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.65rem' }}>
-            Team Member (User)
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '11px',
+            backgroundColor: availableCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: availableCount > 0 ? '#d97706' : '#059669',
+            boxShadow: availableCount > 0 ? '0 2px 8px rgba(245, 158, 11, 0.15)' : '0 2px 8px rgba(16, 185, 129, 0.15)',
+            flexShrink: 0
+          }}>
+            <Clock size={20} />
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Strict User permission scope</span>
         </div>
 
-        <div className="card" style={{ padding: '1.1rem 1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-            <span style={{ fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase' }}>Identity Policy</span>
-            <Sparkles size={18} color="#eab308" />
+        {/* Card 4: Portal Logins */}
+        <div className="glass-card" style={{ padding: '1.15rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Portal Logins
+            </span>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#059669', marginTop: '0.2rem' }}>
+              {totalCount}
+            </div>
+            <span style={{ fontSize: '0.725rem', color: '#059669', fontWeight: 600 }}>
+              Active credentials
+            </span>
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.65rem' }}>
-            Unique Identity
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '11px',
+            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#059669',
+            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)',
+            flexShrink: 0
+          }}>
+            <UserCheck size={20} />
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Distinct names & emails enforced</span>
         </div>
       </div>
 

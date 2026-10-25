@@ -53,8 +53,13 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
     e.preventDefault();
     setError('');
 
+    if (!selectedUserId) {
+      setError('Please select an active registered user from the dropdown.');
+      return;
+    }
+
     if (!name.trim() || !email.trim()) {
-      setError('Please select or specify a registered user with a valid name and email');
+      setError('The selected user must have a valid name and email address.');
       return;
     }
 
@@ -101,7 +106,7 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
             </div>
             <div>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>Add Team Member</h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Assign a member to this project</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Assign a registered member to this project</p>
             </div>
           </div>
 
@@ -133,7 +138,7 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
           <div style={{ marginBottom: '1.2rem' }}>
             <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
               <span>Select Registered User *</span>
-              <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
                 {fetchingUsers ? 'Loading...' : `${registeredUsers.length} registered`}
               </span>
             </label>
@@ -141,13 +146,14 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
               className="form-input"
               value={selectedUserId}
               onChange={handleSelectUser}
+              required
               style={{
                 backgroundColor: 'var(--bg-app)',
                 borderColor: selectedUserId ? 'var(--accent-primary)' : 'var(--border-subtle)',
                 fontWeight: 600
               }}
             >
-              <option value="">-- Choose a registered contributor --</option>
+              <option value="">-- Choose a registered user --</option>
               {registeredUsers.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name || u.username} ({u.email || `@${u.username}`})
@@ -163,34 +169,30 @@ export default function NewMemberModal({ projectId, onClose, onMemberAdded }) {
 
           <div style={{ marginBottom: '1.2rem' }}>
             <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-              Full Name *
+              Full Name (Linked)
             </label>
             <input
               type="text"
               className="form-input"
-              placeholder="e.g. Ahmed or Sarah Chen"
+              placeholder="Select user above..."
               value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setSelectedUserId('');
-              }}
+              readOnly
+              style={{ backgroundColor: 'var(--bg-muted)', opacity: 0.85, cursor: 'not-allowed' }}
               required
             />
           </div>
 
           <div style={{ marginBottom: '1.2rem' }}>
             <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-              Company Email *
+              Company Email (Linked)
             </label>
             <input
               type="email"
               className="form-input"
-              placeholder="user@softwarehouse.dev"
+              placeholder="Select user above..."
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setSelectedUserId('');
-              }}
+              readOnly
+              style={{ backgroundColor: 'var(--bg-muted)', opacity: 0.85, cursor: 'not-allowed' }}
               required
             />
           </div>

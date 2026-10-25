@@ -81,13 +81,31 @@ async function createUser({ username, password, name, role, email }) {
       OUTPUT INSERTED.id, INSERTED.username, INSERTED.name, INSERTED.role, INSERTED.email
       VALUES (@u, @p, @n, @r, @e)
     `);
-  return result.recordset[0];
+
+  const createdUser = result.recordset[0];
+
+  // Notify admin about user creation
+  try {
+    await executeQuery(
+      `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+       VALUES ('Admin', NULL, 'info', @title, @msg, 'Medium', NULL, 0)`,
+      {
+        title: `👤 User Created: ${createdUser.name}`,
+        msg: `You created account "${createdUser.name}" (@${createdUser.username}, ${createdUser.role}).`
+      }
+    );
+  } catch (notifErr) {
+    console.error('Warning: Could not create admin user creation notification:', notifErr.message);
+  }
+
+  return createdUser;
 }
 
 /**
  * Update an existing user (Admin only)
  */
 async function updateUser(id, { username, name, role, email, password }) {
+  const oldUser = await findUserById(id);
   const pool = await connectDB();
   const request = pool.request().input('id', sql.Int, id);
 
@@ -125,7 +143,69 @@ async function updateUser(id, { username, name, role, email, password }) {
   `;
 
   const result = await request.query(query);
-  return result.recordset[0] || null;
+  const updated = result.recordset[0] || null;
+
+  if (oldUser && updated) {
+    const oldEmail = (oldUser.email || '').trim().toLowerCase();
+    const oldName = (oldUser.name || '').trim().toLowerCase();
+    const oldUsername = (oldUser.username || '').trim().toLowerCase();
+
+    // If role changed to 'admin', purge from Members since admins are not project team members
+    if ((updated.role || '').toLowerCase() === 'admin') {
+      await executeQuery(
+        `DELETE FROM Members 
+         WHERE LOWER(LTRIM(RTRIM(email))) = @e 
+            OR LOWER(LTRIM(RTRIM(name))) = @n 
+            OR LOWER(LTRIM(RTRIM(name))) = @u`,
+        { e: oldEmail, n: oldName, u: oldUsername }
+      );
+    } else {
+      // Synchronize Members table with new name and new email
+      await executeQuery(
+        `UPDATE Members 
+         SET name = @newName, email = @newEmail 
+         WHERE LOWER(LTRIM(RTRIM(email))) = @oldEmail 
+            OR LOWER(LTRIM(RTRIM(name))) = @oldName 
+            OR LOWER(LTRIM(RTRIM(name))) = @oldUser`,
+        {
+          newName: updated.name || updated.username,
+          newEmail: updated.email,
+          oldEmail,
+          oldName,
+          oldUser: oldUsername
+        }
+      );
+    }
+
+    // Synchronize Tasks assignee with new name
+    if (updated.name && oldName && updated.name.toLowerCase() !== oldName) {
+      await executeQuery(
+        `UPDATE Tasks 
+         SET assignee = @newName 
+         WHERE LOWER(LTRIM(RTRIM(assignee))) = @oldName 
+            OR LOWER(LTRIM(RTRIM(assignee))) = @oldUser`,
+        { newName: updated.name, oldName, oldUser: oldUsername }
+      );
+    }
+  }
+
+  // Notify admin about user update
+  try {
+    if (updated) {
+      await executeQuery(
+        `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+         VALUES ('Admin', NULL, 'info', @title, @msg, 'Low', NULL, 0)`,
+        {
+          title: `✏️ User Updated: ${updated.name}`,
+          msg: `You updated user account details for "${updated.name}" (@${updated.username}).`
+        }
+      );
+    }
+  } catch (err) {
+    console.error('Warning: Could not create admin user update notification:', err.message);
+  }
+
+  return updated;
 }
 
 async function deleteUser(id) {
@@ -158,6 +238,23 @@ async function deleteUser(id) {
     `DELETE FROM Users WHERE id = @id`,
     { id }
   );
+
+  // Notify admin about user deletion
+  try {
+    if (user) {
+      await executeQuery(
+        `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+         VALUES ('Admin', NULL, 'info', @title, @msg, 'Medium', NULL, 0)`,
+        {
+          title: `🗑️ User Deleted: ${user.name}`,
+          msg: `You deleted account "${user.name}" (@${user.username}) and cleaned up their team and task assignments.`
+        }
+      );
+    }
+  } catch (err) {
+    console.error('Warning: Could not create admin user delete notification:', err.message);
+  }
+
   return result.rowsAffected[0] > 0;
 }
 

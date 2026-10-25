@@ -27,7 +27,7 @@ import MemberDetailModal from './MemberDetailModal';
 import TaskDetailModal from './TaskDetailModal';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 
-export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
+export default function ProjectDetail({ projectId, onBack, onProjectDeleted, searchQuery = '' }) {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -555,16 +555,28 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
           alignItems: 'flex-start'
         }}>
           {columns.map((col) => {
-            const columnTasks = tasks.filter(t => t.status === col.id);
+            const q = (searchQuery || '').toLowerCase().trim();
+            const columnTasks = tasks.filter(t => {
+              if (t.status !== col.id) return false;
+              if (!q) return true;
+              return (
+                (t.title && t.title.toLowerCase().includes(q)) ||
+                (t.description && t.description.toLowerCase().includes(q)) ||
+                (t.assignee && t.assignee.toLowerCase().includes(q))
+              );
+            });
 
             return (
               <div
                 key={col.id}
                 style={{
-                  backgroundColor: 'var(--bg-subtle)',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-subtle)',
-                  padding: '0.85rem',
+                  backgroundColor: 'rgba(255, 255, 255, 0.65)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.85)',
+                  boxShadow: '0 8px 24px rgba(31, 38, 135, 0.04)',
+                  padding: '0.9rem',
                   minHeight: '440px',
                   display: 'flex',
                   flexDirection: 'column'
@@ -800,7 +812,17 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted }) {
             gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
             gap: '1rem'
           }}>
-            {members.map((m) => {
+            {members
+              .filter(m => {
+                const q = (searchQuery || '').toLowerCase().trim();
+                if (!q) return true;
+                return (
+                  (m.name && m.name.toLowerCase().includes(q)) ||
+                  (m.role && m.role.toLowerCase().includes(q)) ||
+                  (m.email && m.email.toLowerCase().includes(q))
+                );
+              })
+              .map((m) => {
               const memberTheme = getProjectTheme(projectId, project?.name);
               return (
                 <div

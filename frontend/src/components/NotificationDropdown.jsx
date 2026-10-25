@@ -22,19 +22,59 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const dropdownRef = useRef(null);
 
   const isAdmin = user?.role === 'Admin' || (user?.role && user.role.includes('Admin'));
   const userRole = isAdmin ? 'Admin' : 'User';
   const userName = user?.name || user?.username || '';
+  const userIdentifiers = {
+    userName,
+    userEmail: user?.email || '',
+    userUsername: user?.username || ''
+  };
+  const storageKey = `proj_read_notifs_${userRole.toLowerCase()}_${(userName || 'default').toLowerCase()}`;
 
-  const fetchNotifications = async () => {
+  // Tick every 30s so relative timestamps ("just now", "1m ago") update live
+  useEffect(() => {
+    const ticker = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(ticker);
+  }, []);
+
+  const getReadSet = () => {
     try {
-      setLoading(true);
-      const res = await api.getNotifications(userRole, userName);
+      const stored = localStorage.getItem(storageKey);
+      return new Set(stored ? JSON.parse(stored) : []);
+    } catch {
+      return new Set();
+    }
+  };
+
+  const saveReadSet = (set) => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify([...set]));
+    } catch (e) {
+      console.warn('Failed to save read notifications to localStorage', e);
+    }
+  };
+
+  const fetchNotifications = async (silent = false) => {
+    try {
+      if (!silent && notifications.length === 0) {
+        setLoading(true);
+      }
+      const res = await api.getNotifications(userRole, userIdentifiers);
       if (res && Array.isArray(res.items)) {
-        setNotifications(res.items);
-        setUnreadCount(res.unreadCount || 0);
+        const readSet = getReadSet();
+        const merged = res.items.map(item => {
+          if (item.isRead || readSet.has(item.id)) {
+            return { ...item, isRead: true };
+          }
+          return item;
+        });
+        setNotifications(merged);
+        const unread = merged.filter(n => !n.isRead).length;
+        setUnreadCount(unread);
       }
     } catch (err) {
       console.error('Failed to load notifications:', err);
@@ -45,9 +85,26 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
 
   useEffect(() => {
     fetchNotifications();
-    // Poll every 20 seconds for fresh updates in the background
-    const timer = setInterval(fetchNotifications, 20000);
-    return () => clearInterval(timer);
+
+    // Fast 2.5s polling for near-instant notification updates across clients
+    const timer = setInterval(() => fetchNotifications(true), 2500);
+
+    // Instant refresh on app-wide mutation events or window focus
+    const handleImmediateRefresh = () => fetchNotifications(true);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchNotifications(true);
+    };
+
+    window.addEventListener('projectation-refresh', handleImmediateRefresh);
+    window.addEventListener('focus', handleImmediateRefresh);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('projectation-refresh', handleImmediateRefresh);
+      window.removeEventListener('focus', handleImmediateRefresh);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [userRole, userName, refreshTrigger]);
 
   // Handle click outside to close dropdown
@@ -65,25 +122,33 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
 
   const handleMarkAllRead = async () => {
     try {
-      await api.markNotificationRead(null, true, userRole, userName);
+      const readSet = getReadSet();
+      notifications.forEach(n => readSet.add(n.id));
+      saveReadSet(readSet);
+
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
+
+      await api.markNotificationRead(null, true, userRole, userIdentifiers);
     } catch (err) {
       console.error('Failed to mark all read:', err);
     }
   };
 
   const handleItemClick = async (notif) => {
-    // Immediately unhighlight in UI state
+    // Immediately unhighlight in UI state and remember read state
     if (!notif.isRead) {
+      const readSet = getReadSet();
+      readSet.add(notif.id);
+      saveReadSet(readSet);
+
       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
-      if (notif.dbId) {
-        try {
-          await api.markNotificationRead(notif.dbId, false, userRole, userName);
-        } catch (err) {
-          console.error('Failed to mark read:', err);
-        }
+
+      try {
+        await api.markNotificationRead(notif.dbId || notif.id, false, userRole, userIdentifiers);
+      } catch (err) {
+        console.error('Failed to mark read:', err);
       }
     }
     if (notif.linkId && onSelectProject) {
@@ -92,12 +157,22 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
     }
   };
 
+  const handleToggleOpen = () => {
+    setIsOpen(prev => {
+      const next = !prev;
+      if (next) {
+        fetchNotifications(true);
+      }
+      return next;
+    });
+  };
+
   const formatTimeAgo = (isoString) => {
     if (!isoString) return 'Recent';
-    const now = new Date();
     const date = new Date(isoString);
-    const diffSec = Math.floor((now - date) / 1000);
-    if (diffSec < 60) return 'Just now';
+    const diffSec = Math.max(0, Math.floor((now - date.getTime()) / 1000));
+    if (diffSec < 15) return 'Just now';
+    if (diffSec < 60) return `${diffSec}s ago`;
     const diffMin = Math.floor(diffSec / 60);
     if (diffMin < 60) return `${diffMin}m ago`;
     const diffHours = Math.floor(diffMin / 60);
@@ -111,7 +186,7 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
       {/* Bell Button */}
       <button
         type="button"
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={handleToggleOpen}
         title="View live notifications"
         style={{
           width: '40px',
@@ -142,30 +217,23 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
         }}
       >
         <Bell size={18} />
+        {/* Sleek Dot Indicator (No numbers) */}
         {unreadCount > 0 && (
           <span
             style={{
               position: 'absolute',
-              top: '-4px',
-              right: '-4px',
-              minWidth: '18px',
-              height: '18px',
-              padding: '0 4px',
-              borderRadius: '999px',
+              top: '6px',
+              right: '6px',
+              width: '11px',
+              height: '11px',
+              borderRadius: '50%',
               backgroundColor: '#ef4444',
-              color: '#ffffff',
-              fontSize: '0.65rem',
-              fontWeight: 800,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 6px rgba(239, 68, 68, 0.45)',
               border: '2px solid #ffffff',
-              animation: 'pulse 2s infinite'
+              boxShadow: '0 2px 6px rgba(239, 68, 68, 0.55)',
+              animation: 'pulse 2s infinite',
+              pointerEvents: 'none'
             }}
-          >
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
+          />
         )}
       </button>
 
@@ -179,12 +247,12 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
             right: 0,
             width: '380px',
             maxWidth: '90vw',
-            backgroundColor: 'rgba(255, 255, 255, 0.98)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
+            background: 'rgba(255, 255, 255, 0.84)',
+            backdropFilter: 'blur(28px)',
+            WebkitBackdropFilter: 'blur(28px)',
             borderRadius: '16px',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: '0 16px 40px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.95)',
+            boxShadow: '0 20px 48px rgba(31, 38, 135, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.95)',
             zIndex: 100,
             overflow: 'hidden',
             animation: 'fadeIn 0.2s ease-out'
@@ -194,11 +262,11 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
           <div
             style={{
               padding: '1rem 1.25rem',
-              borderBottom: '1px solid var(--border-subtle)',
+              borderBottom: '1px solid rgba(226, 232, 240, 0.65)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              backgroundColor: 'rgba(248, 250, 252, 0.85)'
+              backgroundColor: 'rgba(248, 250, 252, 0.60)'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -221,7 +289,7 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
                   Notifications
                 </h4>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 600 }}>
-                  {unreadCount > 0 ? `${unreadCount} unread alert${unreadCount === 1 ? '' : 's'}` : 'All caught up'}
+                  {unreadCount > 0 ? 'Unread alerts' : 'All caught up'}
                 </span>
               </div>
             </div>

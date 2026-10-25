@@ -672,9 +672,9 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
               </div>
             </div>
 
-            {/* Card 4: Sprint Velocity / Health */}
+            {/* Card 4: Overall Progress Ring */}
             <div
-              className="glass-card stat-card-clickable"
+              className="glass-card"
               style={{
                 padding: '1.15rem 1.25rem',
                 display: 'flex',
@@ -684,29 +684,49 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
             >
               <div>
                 <span style={{ fontSize: '0.725rem', color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Contributor Velocity
+                  Overall Progress
                 </span>
-                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#059669', marginTop: '0.35rem' }}>
-                  {totalTasks === 0 ? 'Up to date' : completionPct === 100 ? 'All Completed' : 'Sprint Active'}
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
+                  {completionPct}
+                  <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dim)' }}>%</span>
                 </div>
-                <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  Live delivery tracking
+                <span style={{ fontSize: '0.725rem', fontWeight: 600,
+                  color: completionPct === 100 ? '#059669' : completionPct >= 60 ? '#d97706' : '#dc2626'
+                }}>
+                  {completionPct === 100 ? '✓ All tasks done' : completionPct >= 60 ? 'Good progress' : 'Needs attention'}
                 </span>
               </div>
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '11px',
-                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#059669',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
-                }}
-              >
-                <TrendingUp size={20} />
+              {/* SVG Circular Progress Ring */}
+              <div style={{ position: 'relative', width: '48px', height: '48px', flexShrink: 0 }}>
+                <svg width="48" height="48" viewBox="0 0 48 48" style={{ transform: 'rotate(-90deg)' }}>
+                  {/* Track */}
+                  <circle
+                    cx="24" cy="24" r="19"
+                    fill="none"
+                    stroke="rgba(16,185,129,0.12)"
+                    strokeWidth="5"
+                  />
+                  {/* Progress arc */}
+                  <circle
+                    cx="24" cy="24" r="19"
+                    fill="none"
+                    stroke={completionPct === 100 ? '#059669' : completionPct >= 60 ? '#d97706' : '#2563eb'}
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 19}`}
+                    strokeDashoffset={`${2 * Math.PI * 19 * (1 - completionPct / 100)}`}
+                    style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+                  />
+                </svg>
+                {/* Center label */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.6rem', fontWeight: 800,
+                  color: completionPct === 100 ? '#059669' : completionPct >= 60 ? '#d97706' : '#2563eb'
+                }}>
+                  {completionPct}%
+                </div>
               </div>
             </div>
           </div>

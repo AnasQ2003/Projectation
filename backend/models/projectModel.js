@@ -8,7 +8,15 @@ async function fetchAllProjects() {
       COUNT(DISTINCT t.id) AS total_tasks,
       SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) AS done_tasks
     FROM Projects p
-    LEFT JOIN Members m ON m.project_id = p.id
+    LEFT JOIN Members m ON m.project_id = p.id AND EXISTS (
+      SELECT 1 FROM Users u 
+      WHERE (
+        LOWER(LTRIM(RTRIM(m.email))) = LOWER(LTRIM(RTRIM(u.email)))
+        OR LOWER(LTRIM(RTRIM(m.name))) = LOWER(LTRIM(RTRIM(u.name)))
+        OR LOWER(LTRIM(RTRIM(m.name))) = LOWER(LTRIM(RTRIM(u.username)))
+      )
+      AND LOWER(u.role) != 'admin'
+    )
     LEFT JOIN Tasks t ON t.project_id = p.id
     GROUP BY p.id, p.name, p.code, p.description, p.category, p.priority, p.status, p.start_date, p.deadline, p.budget, p.progress, p.created_at
     ORDER BY p.id DESC
@@ -37,7 +45,20 @@ async function fetchProjectById(projectId) {
   if (!project) return null;
 
   const [membersRes, tasksRes, logsRes] = await Promise.all([
-    executeQuery('SELECT * FROM Members WHERE project_id = @id ORDER BY id ASC', { id: projectId }),
+    executeQuery(`
+      SELECT m.* FROM Members m 
+      WHERE m.project_id = @id 
+        AND EXISTS (
+          SELECT 1 FROM Users u 
+          WHERE (
+            LOWER(LTRIM(RTRIM(m.email))) = LOWER(LTRIM(RTRIM(u.email)))
+            OR LOWER(LTRIM(RTRIM(m.name))) = LOWER(LTRIM(RTRIM(u.name)))
+            OR LOWER(LTRIM(RTRIM(m.name))) = LOWER(LTRIM(RTRIM(u.username)))
+          )
+          AND LOWER(u.role) != 'admin'
+        )
+      ORDER BY m.id ASC
+    `, { id: projectId }),
     executeQuery('SELECT * FROM Tasks WHERE project_id = @id ORDER BY id DESC', { id: projectId }),
     executeQuery('SELECT TOP 15 * FROM ActivityLogs WHERE project_id = @id ORDER BY id DESC', { id: projectId })
   ]);
@@ -96,6 +117,21 @@ async function insertProject({ name, code, description, category, priority, stat
     }
   );
 
+  // Notify admin about their own creation
+  try {
+    await executeQuery(
+      `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+       VALUES ('Admin', NULL, 'info', @title, @msg, 'Medium', @linkId, 0)`,
+      {
+        title: `✅ Project Created: ${name}`,
+        msg: `You created project "${name}" [${generatedCode}] with deadline ${deadline}.`,
+        linkId: newProjectId
+      }
+    );
+  } catch (err) {
+    console.error('Warning: Could not create project creation notification:', err.message);
+  }
+
   return newProjectId;
 }
 
@@ -138,6 +174,23 @@ async function modifyProject(projectId, updateData) {
     `INSERT INTO ActivityLogs (project_id, action, [user]) VALUES (@pid, 'Project details updated', 'Admin')`,
     { pid: projectId }
   );
+
+  // Notify admin about the update
+  try {
+    const projRes = await executeQuery('SELECT name FROM Projects WHERE id = @id', { id: projectId });
+    const pName = (projRes.recordset[0] && projRes.recordset[0].name) || `Project #${projectId}`;
+    await executeQuery(
+      `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+       VALUES ('Admin', NULL, 'task_status', @title, @msg, 'Low', @linkId, 0)`,
+      {
+        title: `✏️ Project Updated: ${pName}`,
+        msg: `You updated the details of project "${pName}".`,
+        linkId: projectId
+      }
+    );
+  } catch (err) {
+    console.error('Warning: Could not create project update notification:', err.message);
+  }
 }
 
 /**
@@ -158,6 +211,13 @@ async function findProjectByName(name, excludeId = null) {
  */
 async function removeProject(projectId) {
   const pid = parseInt(projectId);
+  // Capture project name before deletion for notification
+  let deletedName = `Project #${pid}`;
+  try {
+    const projRes = await executeQuery('SELECT name FROM Projects WHERE id = @id', { id: pid });
+    if (projRes.recordset[0]) deletedName = projRes.recordset[0].name;
+  } catch (_) {}
+
   // 1. Delete tasks in this project
   await executeQuery('DELETE FROM Tasks WHERE project_id = @id', { id: pid });
   // 2. Delete team members in this project
@@ -168,6 +228,20 @@ async function removeProject(projectId) {
   await executeQuery('DELETE FROM Notifications WHERE link_id = @id', { id: pid });
   // 5. Delete the project itself
   await executeQuery('DELETE FROM Projects WHERE id = @id', { id: pid });
+
+  // 6. Notify admin about the deletion
+  try {
+    await executeQuery(
+      `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+       VALUES ('Admin', NULL, 'info', @title, @msg, 'Low', NULL, 0)`,
+      {
+        title: `🗑️ Project Deleted`,
+        msg: `You deleted project "${deletedName}" and all its tasks, members, and logs.`
+      }
+    );
+  } catch (err) {
+    console.error('Warning: Could not create project deletion notification:', err.message);
+  }
 }
 
 module.exports = {

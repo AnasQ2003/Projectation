@@ -13,7 +13,7 @@ import {
 import { api } from '../services/api';
 import { getDeadlineInfo, formatDate } from '../utils/dateUtils';
 
-export default function RoadmapView({ onSelectProject, refreshTrigger }) {
+export default function RoadmapView({ onSelectProject, refreshTrigger, searchQuery = '' }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [urgencyFilter, setUrgencyFilter] = useState('ALL');
@@ -34,6 +34,14 @@ export default function RoadmapView({ onSelectProject, refreshTrigger }) {
   }, [refreshTrigger]);
 
   const filteredProjects = projects.filter((p) => {
+    if (searchQuery && searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchName = (p.name || '').toLowerCase().includes(q);
+      const matchCode = (p.code || '').toLowerCase().includes(q);
+      const matchCategory = (p.category || '').toLowerCase().includes(q);
+      const matchDesc = (p.description || '').toLowerCase().includes(q);
+      if (!matchName && !matchCode && !matchCategory && !matchDesc) return false;
+    }
     const d = getDeadlineInfo(p.deadline);
     if (urgencyFilter === 'OVERDUE') return d.status === 'overdue' || d.status === 'today';
     if (urgencyFilter === 'URGENT') return d.status === 'urgent';

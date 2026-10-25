@@ -325,6 +325,14 @@ async function initSchemaAndSeed() {
       }
     }
 
+    // Automatic data hygiene: Remove any orphaned members that do not match active registered users
+    await pool.request().query(`
+      DELETE FROM Members 
+      WHERE LOWER(LTRIM(RTRIM(email))) NOT IN (SELECT LOWER(LTRIM(RTRIM(email))) FROM Users WHERE LOWER(role) != 'admin') 
+        AND LOWER(LTRIM(RTRIM(name))) NOT IN (SELECT LOWER(LTRIM(RTRIM(name))) FROM Users WHERE LOWER(role) != 'admin') 
+        AND LOWER(LTRIM(RTRIM(name))) NOT IN (SELECT LOWER(LTRIM(RTRIM(username))) FROM Users WHERE LOWER(role) != 'admin');
+    `);
+
     // Seed sample projects if empty
     const projCheck = await pool.request().query("SELECT COUNT(*) AS count FROM Projects");
     if (projCheck.recordset[0].count === 0) {

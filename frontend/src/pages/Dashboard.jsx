@@ -16,7 +16,6 @@ import { api } from '../services/api';
 import ProjectCard from '../components/ProjectCard';
 import NewProjectModal from '../components/NewProjectModal';
 import CategoryManagerModal, { getStoredCategories, saveStoredCategories } from '../components/CategoryManagerModal';
-import UserProgressTracker from '../components/UserProgressTracker';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { getDeadlineInfo } from '../utils/dateUtils';
 
@@ -33,7 +32,6 @@ export default function Dashboard({
   const [projects, setProjects] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState('projects'); // 'projects' | 'user_progress'
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedUrgency, setSelectedUrgency] = useState('ALL');
   const [categories, setCategories] = useState(() => getStoredCategories());
@@ -129,63 +127,12 @@ export default function Dashboard({
       <div style={{ marginBottom: '1.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              {activeSection === 'projects' ? 'Projects Overview' : 'Team Progress & Deliverables Tracker'}
+            <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', margin: 0 }}>
+              Projects Overview
             </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              {activeSection === 'projects' 
-                ? 'Monitor your software sprints, team velocity, and client deadlines'
-                : 'Real-time overview of registered users, active deliverables, and deadline completion audit'}
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.35rem' }}>
+              Monitor your software sprints, team velocity, and client deadlines
             </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-            {/* View Mode Switcher Pills */}
-            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-muted)', padding: '3px', borderRadius: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setActiveSection('projects')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '6px 12px',
-                  borderRadius: '7px',
-                  fontSize: '0.8rem',
-                  fontWeight: activeSection === 'projects' ? 700 : 500,
-                  backgroundColor: activeSection === 'projects' ? '#ffffff' : 'transparent',
-                  color: activeSection === 'projects' ? 'var(--text-main)' : 'var(--text-muted)',
-                  border: 'none',
-                  boxShadow: activeSection === 'projects' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <FolderKanban size={14} />
-                <span>Workspaces ({projects.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveSection('user_progress')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '6px 12px',
-                  borderRadius: '7px',
-                  fontSize: '0.8rem',
-                  fontWeight: activeSection === 'user_progress' ? 700 : 500,
-                  backgroundColor: activeSection === 'user_progress' ? '#ffffff' : 'transparent',
-                  color: activeSection === 'user_progress' ? 'var(--accent-primary)' : 'var(--text-muted)',
-                  border: 'none',
-                  boxShadow: activeSection === 'user_progress' ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <Users size={14} />
-                <span>Team Progress & Deadlines</span>
-              </button>
-            </div>
           </div>
         </div>
 
@@ -284,16 +231,14 @@ export default function Dashboard({
           <div 
             className="glass-card stat-card-clickable"
             onClick={() => {
-              setActiveSection('user_progress');
+              if (onNavigate) onNavigate('team-progress');
             }}
-            title="Click to view team member progress and deadlines"
+            title="Click to view team member progress and deliverables"
             style={{
               padding: '1.15rem 1.25rem',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              borderColor: activeSection === 'user_progress' ? 'var(--accent-primary)' : undefined,
-              backgroundColor: activeSection === 'user_progress' ? 'rgba(239, 246, 255, 0.9)' : undefined
+              justifyContent: 'space-between'
             }}
           >
             <div>
@@ -380,15 +325,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Dynamic Content: Either Team Progress & Deadlines Monitor OR Projects Grid */}
-      {activeSection === 'user_progress' ? (
-        <UserProgressTracker
-          onSelectProject={onSelectProject}
-          refreshTrigger={refreshTrigger}
-        />
-      ) : (
-        <>
-          {/* Filter Toolbar (Frosted Glass Panel) */}
+      {/* Filter Toolbar (Frosted Glass Panel) */}
           <div className="glass-panel" style={{
         display: 'flex',
         flexWrap: 'wrap',
@@ -569,8 +506,6 @@ export default function Dashboard({
             />
           ))}
         </div>
-      )}
-        </>
       )}
 
       {/* Create Project Modal */}

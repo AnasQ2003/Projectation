@@ -18,13 +18,20 @@ import { getDeadlineInfo, formatDate } from '../utils/dateUtils';
 import TaskDetailModal from '../components/TaskDetailModal';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
-export default function AllTasksView({ onSelectProject, refreshTrigger }) {
+export default function AllTasksView({ 
+  onSelectProject, 
+  refreshTrigger,
+  searchQuery: externalSearch,
+  setSearchQuery: setExternalSearch
+}) {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [members, setMembers] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalSearch, setInternalSearch] = useState('');
+  const searchQuery = externalSearch !== undefined ? externalSearch : internalSearch;
+  const setSearchQuery = setExternalSearch || setInternalSearch;
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [projectFilter, setProjectFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');

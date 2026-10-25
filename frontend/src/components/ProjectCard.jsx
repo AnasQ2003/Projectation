@@ -42,11 +42,13 @@ export default function ProjectCard({ project, onSelect, onDelete }) {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        border: '1px solid rgba(226, 232, 240, 0.95)',
+        border: '1px solid rgba(255, 255, 255, 0.88)',
         borderTop: `3px solid ${priorityStyle.accent}`,
-        backgroundColor: '#ffffff',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px -2px rgba(15, 23, 42, 0.05), 0 1px 3px 0 rgba(15, 23, 42, 0.03)'
+        background: 'rgba(255, 255, 255, 0.76)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderRadius: '14px',
+        boxShadow: '0 8px 28px rgba(31, 38, 135, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.95)'
       }}
     >
       <div>

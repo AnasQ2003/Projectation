@@ -25,11 +25,18 @@ import { getProjectTheme } from '../utils/colorUtils';
 import MemberDetailModal from '../components/MemberDetailModal';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
-export default function TeamView({ onSelectProject, refreshTrigger }) {
+export default function TeamView({ 
+  onSelectProject, 
+  refreshTrigger,
+  searchQuery: externalSearch,
+  setSearchQuery: setExternalSearch
+}) {
   const [members, setMembers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalSearch, setInternalSearch] = useState('');
+  const searchQuery = externalSearch !== undefined ? externalSearch : internalSearch;
+  const setSearchQuery = setExternalSearch || setInternalSearch;
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('ALL');
   const [expandedMemberId, setExpandedMemberId] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -118,6 +125,11 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
   const handleCreateMember = async (e) => {
     e.preventDefault();
     setModalError('');
+
+    if (!selectedUserId) {
+      setModalError('Please choose a registered user from the dropdown.');
+      return;
+    }
 
     if (!newMemberName.trim() || !newMemberEmail.trim() || !newMemberProjectId) {
       setModalError('Please select a registered user and choose a project');
@@ -820,6 +832,7 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
                   className="form-input"
                   value={selectedUserId}
                   onChange={handleSelectUser}
+                  required
                   style={{
                     backgroundColor: 'var(--bg-app)',
                     borderColor: selectedUserId ? 'var(--accent-primary)' : 'var(--border-subtle)',
@@ -843,21 +856,15 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
               {/* Full Name */}
               <div style={{ marginBottom: '1.2rem' }}>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-                  Full Name *
+                  Full Name (Linked)
                 </label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Jordan Hayes"
+                  placeholder="Select contributor above..."
                   value={newMemberName}
-                  onChange={(e) => {
-                    setNewMemberName(e.target.value);
-                    setSelectedUserId('');
-                    if (!newMemberEmail) {
-                      const slug = e.target.value.toLowerCase().replace(/\s+/g, '.');
-                      if (slug) setNewMemberEmail(`${slug}@softwarehouse.dev`);
-                    }
-                  }}
+                  readOnly
+                  style={{ backgroundColor: 'var(--bg-muted)', opacity: 0.85, cursor: 'not-allowed' }}
                   required
                 />
               </div>
@@ -865,17 +872,15 @@ export default function TeamView({ onSelectProject, refreshTrigger }) {
               {/* Email */}
               <div style={{ marginBottom: '1.2rem' }}>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-                  Company Email *
+                  Company Email (Linked)
                 </label>
                 <input
                   type="email"
                   className="form-input"
-                  placeholder="jordan.h@softwarehouse.dev"
+                  placeholder="Select contributor above..."
                   value={newMemberEmail}
-                  onChange={(e) => {
-                    setNewMemberEmail(e.target.value);
-                    setSelectedUserId('');
-                  }}
+                  readOnly
+                  style={{ backgroundColor: 'var(--bg-muted)', opacity: 0.85, cursor: 'not-allowed' }}
                   required
                 />
               </div>

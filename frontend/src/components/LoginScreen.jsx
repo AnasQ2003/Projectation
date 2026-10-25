@@ -102,61 +102,96 @@ export default function LoginScreen({ onLoginSuccess }) {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
           <div style={{
-            width: '46px',
-            height: '46px',
-            borderRadius: '12px',
+            width: '48px',
+            height: '48px',
+            borderRadius: '13px',
             backgroundColor: isAdminTab ? 'var(--accent-primary)' : '#059669',
             color: '#ffffff',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: `0 4px 10px ${isAdminTab ? 'rgba(37, 99, 235, 0.25)' : 'rgba(5, 150, 105, 0.25)'}`,
+            boxShadow: `0 8px 20px ${isAdminTab ? 'rgba(37, 99, 235, 0.28)' : 'rgba(5, 150, 105, 0.28)'}`,
             marginBottom: '0.85rem',
-            transition: 'background-color 0.2s ease'
+            transition: 'all 0.35s cubic-bezier(0.34, 1.28, 0.64, 1)',
+            transform: isAdminTab ? 'scale(1)' : 'scale(1.05)'
           }}>
-            <KanbanSquare size={24} />
+            {isAdminTab ? <Shield size={24} /> : <UserCheck size={24} />}
           </div>
-          <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
+          <h2 style={{ 
+            fontSize: '1.45rem', 
+            fontWeight: 800, 
+            color: 'var(--text-main)', 
+            letterSpacing: '-0.02em', 
+            marginBottom: '0.25rem',
+            transition: 'color 0.25s ease'
+          }}>
             {isAdminTab ? 'Administrator Portal' : 'Team Member Portal'}
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', transition: 'color 0.25s ease' }}>
             {isAdminTab
               ? 'Sign in to access your administrative dashboard'
               : 'Sign in to view your assigned projects and deadlines'}
           </p>
         </div>
 
-        {/* Role Portal Selector Tabs */}
+        {/* Role Portal Selector Tabs (Flawless Sliding Pill) */}
         <div style={{
+          position: 'relative',
           display: 'flex',
-          backgroundColor: '#f1f5f9',
+          backgroundColor: 'rgba(241, 245, 249, 0.75)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           padding: '4px',
-          borderRadius: '10px',
+          borderRadius: '12px',
           marginBottom: '1.5rem',
-          border: '1px solid var(--border-subtle)'
+          border: '1px solid rgba(226, 232, 240, 0.85)',
+          boxShadow: 'inset 0 1px 3px rgba(15, 23, 42, 0.04)',
+          overflow: 'hidden'
         }}>
+          {/* Active Sliding Indicator Pill */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '4px',
+              bottom: '4px',
+              left: '4px',
+              width: 'calc(50% - 4px)',
+              transform: isAdminTab ? 'translateX(0%)' : 'translateX(100%)',
+              transition: 'transform 0.34s cubic-bezier(0.34, 1.28, 0.64, 1), box-shadow 0.25s ease, border-color 0.25s ease',
+              borderRadius: '9px',
+              backgroundColor: '#ffffff',
+              border: isAdminTab ? '1px solid rgba(191, 219, 254, 0.95)' : '1px solid rgba(167, 243, 208, 0.95)',
+              boxShadow: isAdminTab 
+                ? '0 4px 14px rgba(37, 99, 235, 0.15), 0 1px 3px rgba(15, 23, 42, 0.06)' 
+                : '0 4px 14px rgba(5, 150, 105, 0.16), 0 1px 3px rgba(15, 23, 42, 0.06)',
+              zIndex: 1,
+              pointerEvents: 'none'
+            }}
+          />
+
           <button
             type="button"
             onClick={() => { setPortalRole('admin'); setError(''); }}
             style={{
+              position: 'relative',
+              zIndex: 2,
               flex: 1,
-              padding: '0.5rem 0.6rem',
-              borderRadius: '7px',
+              padding: '0.55rem 0.6rem',
+              borderRadius: '9px',
               fontSize: '0.825rem',
               fontWeight: isAdminTab ? 700 : 500,
-              backgroundColor: isAdminTab ? '#ffffff' : 'transparent',
+              backgroundColor: 'transparent',
               color: isAdminTab ? 'var(--accent-primary)' : 'var(--text-muted)',
               border: 'none',
               cursor: 'pointer',
-              boxShadow: isAdminTab ? '0 2px 5px rgba(0,0,0,0.06)' : 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
-              transition: 'all 0.15s ease'
+              transition: 'color 0.25s ease'
             }}
           >
-            <Shield size={14} />
+            <Shield size={15} style={{ transition: 'transform 0.25s ease', transform: isAdminTab ? 'scale(1.08)' : 'scale(1)' }} />
             <span>Administrator</span>
           </button>
 
@@ -164,24 +199,25 @@ export default function LoginScreen({ onLoginSuccess }) {
             type="button"
             onClick={() => { setPortalRole('user'); setError(''); }}
             style={{
+              position: 'relative',
+              zIndex: 2,
               flex: 1,
-              padding: '0.5rem 0.6rem',
-              borderRadius: '7px',
+              padding: '0.55rem 0.6rem',
+              borderRadius: '9px',
               fontSize: '0.825rem',
               fontWeight: !isAdminTab ? 700 : 500,
-              backgroundColor: !isAdminTab ? '#ffffff' : 'transparent',
+              backgroundColor: 'transparent',
               color: !isAdminTab ? '#059669' : 'var(--text-muted)',
               border: 'none',
               cursor: 'pointer',
-              boxShadow: !isAdminTab ? '0 2px 5px rgba(0,0,0,0.06)' : 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
-              transition: 'all 0.15s ease'
+              transition: 'color 0.25s ease'
             }}
           >
-            <UserCheck size={14} />
+            <UserCheck size={15} style={{ transition: 'transform 0.25s ease', transform: !isAdminTab ? 'scale(1.08)' : 'scale(1)' }} />
             <span>Team Member</span>
           </button>
         </div>
@@ -315,9 +351,11 @@ export default function LoginScreen({ onLoginSuccess }) {
             style={{ 
               width: '100%', 
               justifyContent: 'center', 
-              padding: '0.7rem',
+              padding: '0.75rem',
+              borderRadius: '10px',
               backgroundColor: isAdminTab ? 'var(--accent-primary)' : '#059669',
-              boxShadow: `0 4px 10px ${isAdminTab ? 'rgba(37, 99, 235, 0.25)' : 'rgba(5, 150, 105, 0.25)'}`
+              boxShadow: isAdminTab ? '0 6px 18px rgba(37, 99, 235, 0.28)' : '0 6px 18px rgba(5, 150, 105, 0.28)',
+              transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
           >
             {loading ? 'Authenticating...' : isAdminTab ? 'Sign In as Administrator' : 'Sign In as Team Member'}
@@ -329,15 +367,16 @@ export default function LoginScreen({ onLoginSuccess }) {
         <div style={{
           marginTop: '1.25rem',
           padding: '0.65rem 0.85rem',
-          borderRadius: '8px',
-          backgroundColor: 'var(--bg-app)',
+          borderRadius: '10px',
+          backgroundColor: isAdminTab ? 'rgba(239, 246, 255, 0.65)' : 'rgba(236, 253, 245, 0.65)',
           fontSize: '0.75rem',
-          color: 'var(--text-muted)',
+          color: isAdminTab ? 'var(--accent-primary)' : '#047857',
           textAlign: 'center',
-          border: '1px dashed var(--border-subtle)'
+          border: isAdminTab ? '1px dashed rgba(191, 219, 254, 0.9)' : '1px dashed rgba(167, 243, 208, 0.9)',
+          transition: 'all 0.3s ease'
         }}>
           {isAdminTab ? (
-            <span><strong>Admin</strong> credentials need to be inserted only</span>
+            <span><strong>Administrator</strong> credentials need to be inserted only</span>
           ) : (
             <span><strong>Team Member</strong> credentials need to be inserted only</span>
           )}
