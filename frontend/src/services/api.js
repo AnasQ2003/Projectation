@@ -335,7 +335,35 @@ export const api = {
   async getAllNames() { return request(`${API_BASE_URL}/system/names`, { method: 'POST', body: {} }); },
 
   // ── 12. Workspace Stream ──
-  async syncWorkspaceStream() { return Promise.resolve([]); }
+  async syncWorkspaceStream() { return Promise.resolve([]); },
+
+  // ── 13. Chart / Analytics Data ──
+  async getChartData() { return request(`${API_BASE_URL}/analytics/chart`, { method: 'POST', body: {} }); },
+
+  // ── 14. SSE Real-Time Events Stream ──
+  connectSSEStream(role, userIdentifiers, onEvent, onConnected, onError) {
+    const { userName = '', userEmail = '', userUsername = '' } = userIdentifiers || {};
+    const params = new URLSearchParams({ role, userName, userEmail, userUsername });
+    const url = `${API_BASE_URL}/events/stream?${params.toString()}`;
+    const evtSource = new EventSource(url);
+    evtSource.addEventListener('connected', () => {
+      if (onConnected) onConnected();
+    });
+    // Listen for all notification types
+    const notifTypes = ['notification', 'task_completed', 'task_status', 'task_assigned', 'project_updated', 'project_created', 'member_added', 'info'];
+    notifTypes.forEach(type => {
+      evtSource.addEventListener(type, (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (onEvent) onEvent({ ...data, _eventType: type });
+        } catch {}
+      });
+    });
+    evtSource.onerror = (e) => {
+      if (onError) onError(e);
+    };
+    return evtSource; // caller can call evtSource.close() to disconnect
+  }
 };
 
 // ─── Global DevTools Console Helpers ───────────────────────────────────────────

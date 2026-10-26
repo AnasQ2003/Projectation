@@ -1,21 +1,14 @@
 const { connectDB, sql } = require('../db');
 
-// In-memory store for read dynamic notification IDs and mark-all timestamps
 const dynamicReadIds = new Set();
 const dynamicAllReadTimestamps = {};
 
 /**
  * List live notifications for either Admin or User
- * Query params or body:
- *   role: 'Admin' | 'User'
- *   userName: 'Sarah Chen' or 'sarah'
  */
 async function listNotifications(req, res) {
   try {
-    const pool = await connectDB();
-    const role = (req.query.role || req.body.role || 'Admin').trim();
-    const userName = (req.query.userName || req.query.name || req.body.userName || req.body.name || '').trim().toLowerCase();
-    const userEmail = (req.query.userEmail || req.query.email || req.body.userEmail || req.body.email || '').trim().toLowerCase();
+    const pool = await connectDB(); const role = (req.query.role || req.body.role || 'Admin').trim(); const userName = (req.query.userName || req.query.name || req.body.userName || req.body.name || '').trim().toLowerCase(); const userEmail = (req.query.userEmail || req.query.email || req.body.userEmail || req.body.email || '').trim().toLowerCase();
     const userUsername = (req.query.userUsername || req.query.username || req.body.userUsername || req.body.username || '').trim().toLowerCase();
 
     const notifications = [];

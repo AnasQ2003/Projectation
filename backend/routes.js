@@ -12,6 +12,8 @@ const { listTasks, addTask, editTask, updateTaskStatus, removeTaskHandler } = re
 const { listActivity, logActivity } = require('./controllers/activityController');
 const { listNotifications, markNotificationRead, clearNotifications } = require('./controllers/notificationController');
 const { listCategories } = require('./controllers/categoryController');
+const { streamEvents } = require('./controllers/eventsController');
+const { getProjectChartData } = require('./controllers/chartController');
 const {
   listUsers,
   createUserHandler,
@@ -107,6 +109,17 @@ router.get('/notifications', listNotifications);
 router.post('/notifications', listNotifications);
 router.post('/notifications/read', markNotificationRead);
 router.post('/notifications/clear', clearNotifications);
+
+// ==========================================
+// 8b. SSE — Real-Time Event Push Stream
+// ==========================================
+router.get('/events/stream', streamEvents);
+
+// ==========================================
+// 8c. CHART / ANALYTICS DATA
+// ==========================================
+router.get('/analytics/chart', getProjectChartData);
+router.post('/analytics/chart', getProjectChartData);
 
 // ==========================================
 // 9. CATEGORIES

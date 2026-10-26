@@ -86,8 +86,46 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
   useEffect(() => {
     fetchNotifications();
 
-    // Fast 2.5s polling for near-instant notification updates across clients
+    // Fast 2.5s polling for fallback when SSE is unavailable
     const timer = setInterval(() => fetchNotifications(true), 2500);
+
+    // ── SSE: Instant push for zero-latency notifications ──
+    let sseSource = null;
+    try {
+      sseSource = api.connectSSEStream(
+        userRole,
+        userIdentifiers,
+        // onEvent: instantly inject the new notification into state
+        (event) => {
+          if (!event || !event.title) return;
+          const newNotif = {
+            id: `sse-${event.type}-${Date.now()}`,
+            type: event._eventType || event.type || 'notification',
+            title: event.title,
+            message: event.message || '',
+            priority: event.priority || 'Medium',
+            isRead: false,
+            linkId: event.linkId || null,
+            timestamp: event.timestamp || new Date().toISOString()
+          };
+          setNotifications(prev => {
+            // Deduplicate: don't add if same title+message already in last 5s
+            const recent = prev.slice(0, 10);
+            const isDupe = recent.some(n => n.title === newNotif.title && n.message === newNotif.message && (Date.now() - new Date(n.timestamp).getTime()) < 5000);
+            if (isDupe) return prev;
+            const updated = [newNotif, ...prev].slice(0, 50);
+            setUnreadCount(updated.filter(n => !n.isRead).length);
+            return updated;
+          });
+          // Also do a full sync shortly after to persist state
+          setTimeout(() => fetchNotifications(true), 800);
+        },
+        null,
+        null
+      );
+    } catch (sseErr) {
+      console.warn('SSE connection failed, falling back to polling only:', sseErr);
+    }
 
     // Instant refresh on app-wide mutation events or window focus
     const handleImmediateRefresh = () => fetchNotifications(true);
@@ -101,6 +139,7 @@ export default function NotificationDropdown({ user, onSelectProject, refreshTri
 
     return () => {
       clearInterval(timer);
+      if (sseSource) { try { sseSource.close(); } catch {} }
       window.removeEventListener('projectation-refresh', handleImmediateRefresh);
       window.removeEventListener('focus', handleImmediateRefresh);
       document.removeEventListener('visibilitychange', handleVisibility);

@@ -1,4 +1,5 @@
 const { executeQuery } = require('../db');
+const { broadcastEvent } = require('../controllers/eventsController');
 
 /**
  * Fetch all tasks across all projects (with project name/code)
@@ -176,18 +177,27 @@ async function modifyTask(taskId, { title, description, status, priority, assign
         );
       }
 
-      // Notify Admin about the task update
+      // Notify Admin about the task update via DB
       await executeQuery(
         `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
          VALUES ('Admin', NULL, @type, @title, @msg, @pri, @linkId, 0)`,
         {
           type: isDone ? 'task_completed' : 'task_status',
-          title: isDone ? `✅ Task Completed: ${t.title}` : `📊 Progress Update: ${t.title}`,
+          title: isDone ? `\u2705 Task Completed: ${t.title}` : `\uD83D\uDCCA Progress Update: ${t.title}`,
           msg: `${actor} in ${t.project_name || 'Project'}: ${actionMsg}`,
           pri: isDone ? 'High' : 'Medium',
           linkId: t.project_id || null
         }
       );
+
+      // Instant SSE push to Admin — no polling latency
+      broadcastEvent({
+        type: isDone ? 'task_completed' : 'task_status',
+        title: isDone ? `\u2705 Task Completed: ${t.title}` : `\uD83D\uDCCA Progress Update: ${t.title}`,
+        message: `${actor} in ${t.project_name || 'Project'}: ${actionMsg}`,
+        priority: isDone ? 'High' : 'Medium',
+        linkId: t.project_id || null
+      }, 'Admin');
 
       // Also notify the user themselves with a confirmation (if updated_by is set)
       if (updated_by) {

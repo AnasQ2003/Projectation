@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import NotificationDropdown from './NotificationDropdown';
+import ProjectProgressChart from './ProjectProgressChart';
 
 /**
  * UserPortalView — Premium Glassmorphic Workspace for Registered Team Members
@@ -729,6 +730,16 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* ── Real-Time Workspace Progress & Task Velocity Analytics ── */}
+          <div style={{ marginBottom: '1.75rem' }}>
+            <ProjectProgressChart 
+              mode="user" 
+              userProjects={projects} 
+              refreshTrigger={refreshTrigger} 
+              onSelectProject={setHighlightedProjectId} 
+            />
           </div>
 
           {/* ── Active Workspaces Section ── */}

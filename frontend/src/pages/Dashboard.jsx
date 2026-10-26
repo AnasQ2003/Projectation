@@ -17,7 +17,9 @@ import ProjectCard from '../components/ProjectCard';
 import NewProjectModal from '../components/NewProjectModal';
 import CategoryManagerModal, { getStoredCategories, saveStoredCategories } from '../components/CategoryManagerModal';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import ProjectProgressChart from '../components/ProjectProgressChart';
 import { getDeadlineInfo } from '../utils/dateUtils';
+
 
 export default function Dashboard({ 
   onSelectProject, 
@@ -323,6 +325,15 @@ export default function Dashboard({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Real-time Project Progress & Task Status Analytics */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <ProjectProgressChart 
+          mode="admin" 
+          refreshTrigger={refreshTrigger} 
+          onSelectProject={onSelectProject} 
+        />
       </div>
 
       {/* Filter Toolbar (Frosted Glass Panel) */}

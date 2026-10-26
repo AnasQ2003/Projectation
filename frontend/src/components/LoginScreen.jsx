@@ -265,7 +265,7 @@ export default function LoginScreen({ onLoginSuccess }) {
                 style={{ paddingLeft: '2.45rem' }}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder={isAdminTab ? "Enter admin username (e.g. admin)" : "Enter user username (e.g. ahmed, sarah, david)"}
+                placeholder={isAdminTab ? "Enter admin username" : "Enter user username"}
                 autoComplete="off"
                 spellCheck="false"
                 required
