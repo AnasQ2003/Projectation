@@ -738,7 +738,12 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
               mode="user" 
               userProjects={projects} 
               refreshTrigger={refreshTrigger} 
-              onSelectProject={setHighlightedProjectId} 
+              onSelectProject={(id) => {
+                setHighlightedProjectId(id);
+                setTimeout(() => {
+                  document.getElementById(`user-project-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+              }} 
             />
           </div>
 

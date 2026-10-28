@@ -15,12 +15,15 @@ import {
   Edit2,
   Edit3,
   Check,
-  X
+  X,
+  BarChart3
 } from 'lucide-react';
 
 import { api } from '../services/api';
 import { getDeadlineInfo, formatDate } from '../utils/dateUtils';
 import { getProjectTheme } from '../utils/colorUtils';
+import ProjectProgressChart from './ProjectProgressChart';
+import ProjectMemberAnalyticsGraph from './ProjectMemberAnalyticsGraph';
 import NewTaskModal from './NewTaskModal';
 import NewMemberModal from './NewMemberModal';
 import MemberDetailModal from './MemberDetailModal';
@@ -452,6 +455,13 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted, sea
         </div>
       </div>
 
+      {/* ── Live Project Velocity & Member Progress Graph (Interactive) ── */}
+      <ProjectMemberAnalyticsGraph 
+        project={project}
+        tasks={tasks}
+        members={members}
+      />
+
       {/* Tabs Navigation */}
       <div className="tab-bar" style={{
         display: 'flex',
@@ -543,6 +553,23 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted, sea
         >
           <Activity size={16} />
           <span>Activity Log</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('analytics')}
+          style={{
+            padding: '0.65rem 1rem',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            color: activeTab === 'analytics' ? 'var(--accent-primary)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'analytics' ? '2px solid var(--accent-primary)' : '2px solid transparent'
+          }}
+        >
+          <BarChart3 size={16} />
+          <span>Velocity & Analytics</span>
         </button>
       </div>
 
@@ -1144,6 +1171,17 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted, sea
               ))
             )}
           </div>
+        </div>
+      )}
+
+      {/* TAB 5: PROJECT VELOCITY & ANALYTICS GRAPH */}
+      {activeTab === 'analytics' && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <ProjectProgressChart 
+            mode="admin" 
+            initialProjectId={projectId} 
+            refreshTrigger={project?.id}
+          />
         </div>
       )}
 

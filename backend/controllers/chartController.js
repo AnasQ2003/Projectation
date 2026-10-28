@@ -35,10 +35,61 @@ async function getProjectChartData(req, res) {
       ORDER BY day ASC
     `);
 
+    const tasksRes = await pool.request().query(`
+      SELECT 
+        id, 
+        project_id, 
+        title, 
+        status, 
+        priority, 
+        assignee, 
+        progress_percent, 
+        due_date,
+        completed_at,
+        created_at
+      FROM Tasks
+      ORDER BY id DESC
+    `);
+
+    // Group tasks by project_id
+    const tasksByProject = {};
+    for (const t of (tasksRes.recordset || [])) {
+      if (!tasksByProject[t.project_id]) {
+        tasksByProject[t.project_id] = [];
+      }
+      tasksByProject[t.project_id].push(t);
+    }
+
     const projects = projectsRes.recordset.map(function(p) {
-      const total = p.total_tasks || 0;
-      const done = p.done_tasks || 0;
+      const projTasks = tasksByProject[p.id] || [];
+      const total = projTasks.length;
+      const done = projTasks.filter(t => (t.status || '').toLowerCase() === 'done').length;
+      const in_progress = projTasks.filter(t => (t.status || '').toLowerCase() === 'in_progress').length;
+      const review = projTasks.filter(t => (t.status || '').toLowerCase() === 'review').length;
+      const todo = projTasks.filter(t => ['todo', ''].includes((t.status || '').toLowerCase())).length;
+
+      const urgent = projTasks.filter(t => (t.priority || '').toLowerCase() === 'urgent').length;
+      const high = projTasks.filter(t => (t.priority || '').toLowerCase() === 'high').length;
+      const medium = projTasks.filter(t => (t.priority || '').toLowerCase() === 'medium').length;
+      const low = projTasks.filter(t => (t.priority || '').toLowerCase() === 'low').length;
+
+      // Group by assignee
+      const assigneeMap = {};
+      for (const t of projTasks) {
+        const name = (t.assignee || 'Unassigned').trim();
+        if (!assigneeMap[name]) {
+          assigneeMap[name] = { name, total: 0, done: 0, in_progress: 0, review: 0, todo: 0 };
+        }
+        assigneeMap[name].total++;
+        const st = (t.status || '').toLowerCase();
+        if (st === 'done') assigneeMap[name].done++;
+        else if (st === 'in_progress') assigneeMap[name].in_progress++;
+        else if (st === 'review') assigneeMap[name].review++;
+        else assigneeMap[name].todo++;
+      }
+
       const computedProgress = total > 0 ? Math.round((done / total) * 100) : (p.progress || 0);
+
       return {
         id: p.id,
         name: p.name,
@@ -50,10 +101,26 @@ async function getProjectChartData(req, res) {
         tasks: {
           total: total,
           done: done,
-          in_progress: p.in_progress_tasks || 0,
-          review: p.review_tasks || 0,
-          todo: p.todo_tasks || 0
-        }
+          in_progress: in_progress,
+          review: review,
+          todo: todo
+        },
+        priorities: {
+          urgent: urgent,
+          high: high,
+          medium: medium,
+          low: low
+        },
+        assignees: Object.values(assigneeMap),
+        items: projTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+          assignee: t.assignee,
+          progress_percent: t.progress_percent,
+          due_date: t.due_date
+        }))
       };
     });
 
