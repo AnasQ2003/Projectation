@@ -49,9 +49,9 @@ async function ensureDatabaseExists() {
       END
     `);
     await masterPool.close();
-    console.log('✅ SQL Server: ProjectationDB verified/created in SSMS!');
+    console.log(' SQL Server: ProjectationDB verified/created in SSMS!');
   } catch (err) {
-    console.error('⚠️ Warning checking master database:', err.message);
+    console.error(' Warning checking master database:', err.message);
   }
 }
 
@@ -236,6 +236,12 @@ async function initSchemaAndSeed() {
       SET completed_at = due_date,
           progress_percent = 100
       WHERE LOWER(status) = 'done' AND (completed_at IS NULL OR completed_at = '');
+
+      -- Ensure progress_percent strictly matches status across all tasks
+      UPDATE Tasks SET progress_percent = 100 WHERE LOWER(status) = 'done';
+      UPDATE Tasks SET progress_percent = 75 WHERE LOWER(status) = 'review';
+      UPDATE Tasks SET progress_percent = 50 WHERE LOWER(status) = 'in_progress';
+      UPDATE Tasks SET progress_percent = 0 WHERE LOWER(status) = 'todo';
     `);
 
     // Seed initial notifications if Notifications table is empty
@@ -263,7 +269,7 @@ async function initSchemaAndSeed() {
           INSERT INTO Users (username, password, name, role, email)
           VALUES ('admin', @hash, 'Admin', 'Admin', 'admin@softwarehouse.dev');
         `);
-      console.log('✅ Single Admin user initialized with encrypted credentials');
+      console.log(' Single Admin user initialized with encrypted credentials');
     } else {
       await pool.request().query(`
         UPDATE Users 
@@ -295,7 +301,7 @@ async function initSchemaAndSeed() {
             INSERT INTO Users (username, password, name, role, email)
             VALUES (@u, @p, @n, @r, @e)
           `);
-        console.log(`✅ Seeded regular user: ${ru.username}`);
+        console.log(` Seeded regular user: ${ru.username}`);
       }
     }
 
@@ -466,7 +472,7 @@ async function seedInitialProjects() {
       `);
   }
 
-  console.log('✅ Finished seeding initial projects in SQL Server');
+  console.log(' Finished seeding initial projects in SQL Server');
 }
 
 const executeQuery = async (query, params = {}) => {

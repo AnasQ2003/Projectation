@@ -38,9 +38,24 @@ import ProjectProgressChart from './ProjectProgressChart';
  * 2. Enterprise Glassmorphism: Inherits the application's native radial mesh gradient,
  *    frosted cards (.glass-card), and subtle translucent borders.
  * 3. Interactive Contributor Mode: Registered team members can update task status,
- *    adjust progress percentage, log deliverables notes, and broadcast live notifications to Admin.
+ *    with progress percentage updating automatically based on status, and log deliverables notes.
  * 4. Interactive Polish: Built-in workspace search, status filters, and task progression.
  */
+
+export const STATUS_PROGRESS_MAP = {
+  todo: 0,
+  in_progress: 50,
+  review: 75,
+  done: 100
+};
+
+export const getStatusProgress = (status) => {
+  const s = (status || '').toLowerCase().trim();
+  if (s === 'done' || s === 'completed') return 100;
+  if (s === 'review' || s === 'in_review') return 75;
+  if (s === 'in_progress' || s === 'inprogress' || s === 'active' || s === 'doing') return 50;
+  return 0; // todo
+};
 
 export default function UserPortalView({ user, onLogout, refreshTrigger, onRefresh }) {
   const [projects, setProjects] = useState([]);
@@ -179,8 +194,9 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
       projectName: project.name,
       projectCode: project.code
     });
-    setUpdateStatus(task.status || 'todo');
-    setUpdateProgress(task.progress_percent !== undefined ? task.progress_percent : ((task.status || '').toLowerCase() === 'done' ? 100 : 0));
+    const st = task.status || 'todo';
+    setUpdateStatus(st);
+    setUpdateProgress(getStatusProgress(st));
     setUpdateNote(task.progress_note || '');
     setUpdateExpectedDate(task.completed_at || task.due_date || '');
   };
@@ -189,7 +205,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
   const handleQuickToggleDone = async (task, project) => {
     const isCurrentlyDone = (task.status || '').toLowerCase() === 'done';
     const newStatus = isCurrentlyDone ? 'in_progress' : 'done';
-    const newProgress = isCurrentlyDone ? 50 : 100;
+    const newProgress = getStatusProgress(newStatus);
     const newCompletedAt = isCurrentlyDone ? null : new Date().toISOString().split('T')[0];
 
     // Optimistic local state update
@@ -240,7 +256,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
     try {
       setSavingProgress(true);
       const statusVal = updateStatus.toLowerCase();
-      const progressVal = statusVal === 'done' ? 100 : updateProgress;
+      const progressVal = getStatusProgress(statusVal);
       const noteVal = updateNote.trim();
       // Use user-entered date; fall back to today if marking done with no date set
       const completedAtVal = statusVal === 'done'
@@ -1295,15 +1311,15 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                                       <div style={{ width: '60px', height: '5px', backgroundColor: 'rgba(226, 232, 240, 0.8)', borderRadius: '999px', overflow: 'hidden' }}>
                                         <div
                                           style={{
-                                            width: `${isDone ? 100 : task.progress_percent || 0}%`,
+                                            width: `${isDone ? 100 : (task.progress_percent !== undefined && task.progress_percent !== null ? task.progress_percent : getStatusProgress(task.status))}%`,
                                             height: '100%',
-                                            backgroundColor: isDone ? '#059669' : '#2563eb',
+                                            backgroundColor: isDone ? '#059669' : isReview ? '#d97706' : isInProgress ? '#2563eb' : '#94a3b8',
                                             borderRadius: '999px'
                                           }}
                                         />
                                       </div>
-                                      <span style={{ fontSize: '0.725rem', fontWeight: 700, color: isDone ? '#059669' : 'var(--text-muted)' }}>
-                                        {isDone ? 100 : task.progress_percent || 0}%
+                                      <span style={{ fontSize: '0.725rem', fontWeight: 700, color: isDone ? '#059669' : isReview ? '#d97706' : isInProgress ? '#2563eb' : 'var(--text-muted)' }}>
+                                        {isDone ? 100 : (task.progress_percent !== undefined && task.progress_percent !== null ? task.progress_percent : getStatusProgress(task.status))}%
                                       </span>
                                     </div>
 
@@ -1495,8 +1511,7 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                         type="button"
                         onClick={() => {
                           setUpdateStatus(st.id);
-                          if (st.id === 'done') setUpdateProgress(100);
-                          if (st.id === 'todo' && updateProgress === 100) setUpdateProgress(0);
+                          setUpdateProgress(getStatusProgress(st.id));
                         }}
                         style={{
                           padding: '0.65rem 0.5rem',
@@ -1518,60 +1533,54 @@ export default function UserPortalView({ user, onLogout, refreshTrigger, onRefre
                 </div>
               </div>
 
-              {/* Progress Slider (0 - 100%) */}
+              {/* Progress Percentage (Auto-derived from Status - Read Only) */}
               <div style={{ marginBottom: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>
                     Progress Percentage
                   </label>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: updateStatus === 'done' || updateProgress === 100 ? '#059669' : '#2563eb' }}>
-                    {updateStatus === 'done' ? 100 : updateProgress}%
+                  <span style={{
+                    fontSize: '0.9rem',
+                    fontWeight: 800,
+                    color: updateStatus === 'done'
+                      ? '#059669'
+                      : updateStatus === 'review'
+                      ? '#d97706'
+                      : updateStatus === 'in_progress'
+                      ? '#2563eb'
+                      : '#64748b'
+                  }}>
+                    {getStatusProgress(updateStatus)}%
                   </span>
                 </div>
 
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={updateStatus === 'done' ? 100 : updateProgress}
-                  disabled={updateStatus === 'done'}
-                  onChange={(e) => setUpdateProgress(parseInt(e.target.value))}
-                  style={{
-                    width: '100%',
-                    accentColor: '#2563eb',
-                    cursor: updateStatus === 'done' ? 'not-allowed' : 'pointer'
-                  }}
-                />
-
-                {/* Quick preset buttons */}
-                {updateStatus !== 'done' && (
-                  <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.5rem' }}>
-                    {[0, 25, 50, 75, 100].map(pct => (
-                      <button
-                        key={pct}
-                        type="button"
-                        onClick={() => {
-                          setUpdateProgress(pct);
-                          if (pct === 100) setUpdateStatus('done');
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '3px 0',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-subtle)',
-                          backgroundColor: updateProgress === pct ? 'var(--accent-primary-light)' : 'transparent',
-                          color: updateProgress === pct ? 'var(--accent-primary)' : 'var(--text-dim)',
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {pct}%
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {/* Clean visual progress bar (Read-only, calculated from status) */}
+                <div style={{
+                  width: '100%',
+                  height: '8px',
+                  backgroundColor: 'rgba(226, 232, 240, 0.8)',
+                  borderRadius: '999px',
+                  overflow: 'hidden'
+                }}>
+                  <div
+                    style={{
+                      width: `${getStatusProgress(updateStatus)}%`,
+                      height: '100%',
+                      backgroundColor: updateStatus === 'done'
+                        ? '#059669'
+                        : updateStatus === 'review'
+                        ? '#d97706'
+                        : updateStatus === 'in_progress'
+                        ? '#2563eb'
+                        : '#94a3b8',
+                      borderRadius: '999px',
+                      transition: 'width 0.25s ease'
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: '0.725rem', color: 'var(--text-dim)', marginTop: '0.35rem', fontWeight: 500 }}>
+                  Automatically linked to status: To Do (0%), In Progress (50%), Review (75%), Completed (100%).
+                </div>
               </div>
 
               {/* Expected / Actual Completion Date */}

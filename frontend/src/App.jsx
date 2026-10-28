@@ -138,7 +138,7 @@ export default function App() {
     if (selectedProjectId) {
       return {
         screenLabel: 'Project',
-        placeholder: 'Search tasks or members in this project...'
+        placeholder: 'Search...'
       };
     }
     switch (activeTab) {

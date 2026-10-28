@@ -24,9 +24,17 @@ async function fetchAllTasks() {
 async function insertTask({ project_id, title, description, status, priority, assignee, due_date }) {
   const pid = parseInt(project_id);
   const query = `
-    INSERT INTO Tasks (project_id, title, description, status, priority, assignee, due_date)
+    INSERT INTO Tasks (project_id, title, description, status, priority, assignee, due_date, progress_percent)
     OUTPUT INSERTED.id
-    VALUES (@pid, @title, @desc, @status, @priority, @assignee, @due_date);
+    VALUES (
+      @pid, @title, @desc, @status, @priority, @assignee, @due_date,
+      CASE 
+        WHEN LOWER(@status) = 'done' THEN 100
+        WHEN LOWER(@status) = 'review' THEN 75
+        WHEN LOWER(@status) = 'in_progress' THEN 50
+        ELSE 0
+      END
+    );
 
     UPDATE Projects
     SET progress = (
@@ -108,9 +116,11 @@ async function modifyTask(taskId, { title, description, status, priority, assign
         due_date         = COALESCE(@due_date, due_date),
         progress_percent = CASE 
                              WHEN @progress_percent IS NOT NULL THEN @progress_percent
-                             WHEN LOWER(@status) = 'done' THEN 100
-                             WHEN LOWER(@status) = 'todo' AND progress_percent = 100 THEN 0
-                             ELSE progress_percent
+                             WHEN LOWER(COALESCE(@status, status)) = 'done' THEN 100
+                             WHEN LOWER(COALESCE(@status, status)) = 'review' THEN 75
+                             WHEN LOWER(COALESCE(@status, status)) = 'in_progress' THEN 50
+                             WHEN LOWER(COALESCE(@status, status)) = 'todo' THEN 0
+                             ELSE COALESCE(progress_percent, 0)
                            END,
         progress_note    = COALESCE(@progress_note, progress_note),
         completed_at     = CASE
@@ -153,7 +163,7 @@ async function modifyTask(taskId, { title, description, status, priority, assign
     id: parseInt(taskId)
   });
 
-  // Log activity and create notification for admin
+  // Log activity and create notification
   try {
     const taskInfoRes = await executeQuery(`
       SELECT t.id, t.title, t.status, t.due_date, t.completed_at, t.progress_percent, t.assignee, t.project_id, p.name AS project_name
@@ -164,9 +174,10 @@ async function modifyTask(taskId, { title, description, status, priority, assign
 
     if (taskInfoRes.recordset && taskInfoRes.recordset.length > 0) {
       const t = taskInfoRes.recordset[0];
+      const isAdminOverride = (updated_by || '').toLowerCase() === 'admin';
       const actor = updated_by || t.assignee || 'Team Member';
       const isDone = (t.status || '').toLowerCase() === 'done';
-      const actionMsg = isDone 
+      const actionMsg = isDone
         ? `Completed task "${t.title}" (Completed: ${t.completed_at || 'Today'}, Deadline: ${t.due_date || 'N/A'})`
         : `Updated task "${t.title}" status to ${t.status} (${t.progress_percent || 0}% completed)`;
 
@@ -177,44 +188,96 @@ async function modifyTask(taskId, { title, description, status, priority, assign
         );
       }
 
-      // Notify Admin about the task update via DB
-      await executeQuery(
-        `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
-         VALUES ('Admin', NULL, @type, @title, @msg, @pri, @linkId, 0)`,
-        {
-          type: isDone ? 'task_completed' : 'task_status',
-          title: isDone ? `\u2705 Task Completed: ${t.title}` : `\uD83D\uDCCA Progress Update: ${t.title}`,
-          msg: `${actor} in ${t.project_name || 'Project'}: ${actionMsg}`,
-          pri: isDone ? 'High' : 'Medium',
-          linkId: t.project_id || null
+      if (isAdminOverride) {
+        // ── Admin changed the task status ──
+        // 1. Notify the assigned user (DB persistent + SSE real-time)
+        const assigneeKey = (t.assignee || '').toLowerCase().trim();
+        if (assigneeKey && assigneeKey !== 'unassigned') {
+          const userMsg = isDone
+            ? `Admin has marked your task "${t.title}" as Completed in "${t.project_name || 'the project'}".`
+            : `Admin changed your task "${t.title}" to "${t.status}" in "${t.project_name || 'the project'}".`;
+          await executeQuery(
+            `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+             VALUES ('User', @targetUser, @type, @title, @msg, @pri, @linkId, 0)`,
+            {
+              targetUser: assigneeKey,
+              type: isDone ? 'task_completed' : 'task_status',
+              title: isDone ? '✅ Task Marked Complete by Admin' : '🔄 Task Status Changed by Admin',
+              msg: userMsg,
+              pri: isDone ? 'High' : 'Medium',
+              linkId: t.project_id || null
+            }
+          );
+          // SSE real-time push to the assigned user
+          broadcastEvent({
+            type: isDone ? 'task_completed' : 'task_status',
+            title: isDone ? '✅ Task Marked Complete by Admin' : '🔄 Task Status Changed by Admin',
+            message: userMsg,
+            priority: isDone ? 'High' : 'Medium',
+            linkId: t.project_id || null
+          }, 'User', assigneeKey);
         }
-      );
 
-      // Instant SSE push to Admin — no polling latency
-      broadcastEvent({
-        type: isDone ? 'task_completed' : 'task_status',
-        title: isDone ? `\u2705 Task Completed: ${t.title}` : `\uD83D\uDCCA Progress Update: ${t.title}`,
-        message: `${actor} in ${t.project_name || 'Project'}: ${actionMsg}`,
-        priority: isDone ? 'High' : 'Medium',
-        linkId: t.project_id || null
-      }, 'Admin');
-
-      // Also notify the user themselves with a confirmation (if updated_by is set)
-      if (updated_by) {
-        const confirmMsg = isDone
-          ? `Your task "${t.title}" has been marked as completed. Great work!`
-          : `Your task "${t.title}" progress updated to ${t.progress_percent || 0}% - ${t.status}.`;
+        // 2. Confirm to admin (DB + SSE)
+        const adminConfirmMsg = `You changed "${t.title}" status to "${t.status}" in "${t.project_name || 'Project'}" (Assigned: ${t.assignee || 'Unassigned'}).`;
         await executeQuery(
           `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
-           VALUES ('User', @targetUser, 'task_status', @title, @msg, @pri, @linkId, 0)`,
+           VALUES ('Admin', NULL, @type, @title, @msg, @pri, @linkId, 0)`,
           {
-            targetUser: updated_by.toLowerCase(),
-            title: isDone ? '🎉 Task Completed!' : '📋 Progress Saved',
-            msg: confirmMsg,
-            pri: 'Low',
+            type: isDone ? 'task_completed' : 'task_status',
+            title: isDone ? `✅ Admin Completed: ${t.title}` : `🔄 Admin Updated: ${t.title}`,
+            msg: adminConfirmMsg,
+            pri: isDone ? 'High' : 'Medium',
             linkId: t.project_id || null
           }
         );
+        broadcastEvent({
+          type: isDone ? 'task_completed' : 'task_status',
+          title: isDone ? `✅ Admin Completed: ${t.title}` : `🔄 Admin Updated: ${t.title}`,
+          message: adminConfirmMsg,
+          priority: isDone ? 'High' : 'Medium',
+          linkId: t.project_id || null
+        }, 'Admin');
+
+      } else {
+        // ── Regular user updated the task ──
+        // 1. Notify Admin (DB + SSE)
+        await executeQuery(
+          `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+           VALUES ('Admin', NULL, @type, @title, @msg, @pri, @linkId, 0)`,
+          {
+            type: isDone ? 'task_completed' : 'task_status',
+            title: isDone ? `\u2705 Task Completed: ${t.title}` : `\uD83D\uDCCA Progress Update: ${t.title}`,
+            msg: `${actor} in ${t.project_name || 'Project'}: ${actionMsg}`,
+            pri: isDone ? 'High' : 'Medium',
+            linkId: t.project_id || null
+          }
+        );
+        broadcastEvent({
+          type: isDone ? 'task_completed' : 'task_status',
+          title: isDone ? `\u2705 Task Completed: ${t.title}` : `\uD83D\uDCCA Progress Update: ${t.title}`,
+          message: `${actor} in ${t.project_name || 'Project'}: ${actionMsg}`,
+          priority: isDone ? 'High' : 'Medium',
+          linkId: t.project_id || null
+        }, 'Admin');
+
+        // 2. Confirm to the user themselves (DB only)
+        if (updated_by) {
+          const confirmMsg = isDone
+            ? `Your task "${t.title}" has been marked as completed. Great work!`
+            : `Your task "${t.title}" progress updated to ${t.progress_percent || 0}% - ${t.status}.`;
+          await executeQuery(
+            `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
+             VALUES ('User', @targetUser, 'task_status', @title, @msg, @pri, @linkId, 0)`,
+            {
+              targetUser: updated_by.toLowerCase(),
+              title: isDone ? '🎉 Task Completed!' : '📋 Progress Saved',
+              msg: confirmMsg,
+              pri: 'Low',
+              linkId: t.project_id || null
+            }
+          );
+        }
       }
     }
   } catch (err) {

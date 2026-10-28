@@ -70,14 +70,27 @@ async function updateTaskStatus(req, res) {
   }
 
   const validStatuses = ['todo', 'in_progress', 'review', 'done'];
-  if (!validStatuses.includes(status.toLowerCase())) {
+  const normalizedStatus = status.toLowerCase();
+  if (!validStatuses.includes(normalizedStatus)) {
     return res.status(400).json({ error: 'Invalid status value. Must be todo, in_progress, review, or done.' });
   }
 
+  const statusProgressMap = {
+    todo: 0,
+    in_progress: 50,
+    review: 75,
+    done: 100
+  };
+
+  // Progress is derived directly from the status
+  const finalProgress = progress_percent !== undefined && progress_percent !== null
+    ? parseInt(progress_percent)
+    : (statusProgressMap[normalizedStatus] ?? 0);
+
   try {
     const result = await updateTask(id, {
-      status: status.toLowerCase(),
-      progress_percent,
+      status: normalizedStatus,
+      progress_percent: finalProgress,
       progress_note,
       completed_at,
       updated_by

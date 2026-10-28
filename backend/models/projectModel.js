@@ -123,7 +123,7 @@ async function insertProject({ name, code, description, category, priority, stat
       `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
        VALUES ('Admin', NULL, 'info', @title, @msg, 'Medium', @linkId, 0)`,
       {
-        title: `✅ Project Created: ${name}`,
+        title: ` Project Created: ${name}`,
         msg: `You created project "${name}" [${generatedCode}] with deadline ${deadline}.`,
         linkId: newProjectId
       }
@@ -216,7 +216,7 @@ async function removeProject(projectId) {
   try {
     const projRes = await executeQuery('SELECT name FROM Projects WHERE id = @id', { id: pid });
     if (projRes.recordset[0]) deletedName = projRes.recordset[0].name;
-  } catch (_) {}
+  } catch (_) { }
 
   // 1. Delete tasks in this project
   await executeQuery('DELETE FROM Tasks WHERE project_id = @id', { id: pid });

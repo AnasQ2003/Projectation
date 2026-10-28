@@ -56,11 +56,11 @@ async function getAllNamesDirectory(req, res) {
     const assigneeNames = Array.from(new Set(tasks.map(t => t.assignee).filter(Boolean)));
 
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📋 [API Directory Telemetry] All Names Queried by Client:');
-    console.log('   👥 Registered User Names (' + userNames.length + '):', userNames.join(', '));
-    console.log('   👤 Team Member Names (' + memberNames.length + '):', memberNames.join(', '));
-    console.log('   📁 Project Names (' + projectNames.length + '):', projectNames.join(', '));
-    console.log('   🎯 Active Assignees (' + assigneeNames.length + '):', assigneeNames.join(', '));
+    console.log(' [API Directory Telemetry] All Names Queried by Client:');
+    console.log(' Registered User Names (' + userNames.length + '):', userNames.join(', '));
+    console.log(' Team Member Names (' + memberNames.length + '):', memberNames.join(', '));
+    console.log(' Project Names (' + projectNames.length + '):', projectNames.join(', '));
+    console.log(' Active Assignees (' + assigneeNames.length + '):', assigneeNames.join(', '));
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     return res.json({

@@ -74,10 +74,12 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted, sea
     fetchProjectDetails();
   }, [projectId]);
 
-  // Handle task status update (moving across Jira columns)
-  const handleTaskStatusChange = async (taskId, newStatus) => {
+  // Handle task status update (moving across Jira columns) — Admin override path
+  // Uses updateTaskStatus so the backend fires proper notifications to both admin + assigned user
+  const handleTaskStatusChange = async (taskId, newStatus, assignee) => {
     try {
-      await api.updateTask(taskId, { status: newStatus });
+      const completedAt = newStatus === 'done' ? new Date().toISOString().split('T')[0] : null;
+      await api.updateTaskStatus(taskId, newStatus, undefined, undefined, 'Admin', completedAt);
       fetchProjectDetails();
     } catch (err) {
       alert('Error updating task: ' + err.message);
@@ -581,10 +583,19 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted, sea
           gap: '1rem',
           alignItems: 'flex-start'
         }}>
-          {columns.map((col) => {
+          {/* Build a Set of member names (lower-cased) so we can filter board tasks */}
+          {(() => {
+            const memberNameSet = new Set(
+              members.map(m => (m.name || '').toLowerCase().trim()).filter(Boolean)
+            );
+
+            return columns.map((col) => {
             const q = (searchQuery || '').toLowerCase().trim();
             const columnTasks = tasks.filter(t => {
               if (t.status !== col.id) return false;
+              // Only show tasks assigned to actual project members (or unassigned)
+              const assigneeLower = (t.assignee || '').toLowerCase().trim();
+              if (assigneeLower && assigneeLower !== 'unassigned' && !memberNameSet.has(assigneeLower)) return false;
               if (!q) return true;
               return (
                 (t.title && t.title.toLowerCase().includes(q)) ||
@@ -791,7 +802,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted, sea
                             <select
                               value={t.status}
                               onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => handleTaskStatusChange(t.id, e.target.value)}
+                              onChange={(e) => handleTaskStatusChange(t.id, e.target.value, t.assignee)}
                               style={{
                                 fontSize: '0.7rem',
                                 backgroundColor: 'var(--bg-muted)',
@@ -802,6 +813,7 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted, sea
                                 cursor: 'pointer',
                                 outline: 'none'
                               }}
+                              title="Admin: Change task status (notifies assigned user)"
                             >
                               <option value="todo">To Do</option>
                               <option value="in_progress">In Progress</option>
@@ -816,7 +828,8 @@ export default function ProjectDetail({ projectId, onBack, onProjectDeleted, sea
                 </div>
               </div>
             );
-          })}
+          });
+          })()}
         </div>
       )}
 

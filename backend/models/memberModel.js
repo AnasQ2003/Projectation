@@ -76,7 +76,7 @@ async function insertMember({ project_id, name, email, role, avatar_color }) {
       `INSERT INTO Notifications (target_role, target_user, type, title, message, priority, link_id, is_read)
        VALUES ('Admin', NULL, 'info', @title, @msg, 'Medium', @linkId, 0)`,
       {
-        title: `✅ Member Added: ${name}`,
+        title: ` Member Added: ${name}`,
         msg: `You added ${name} (${role}) to "${projectName}".`,
         linkId: pid
       }
@@ -217,7 +217,7 @@ async function removeMember(memberId) {
         );
       }
     }
-  } catch (_) {}
+  } catch (_) { }
 
   await executeQuery('DELETE FROM Members WHERE id = @id', { id: mid });
 
@@ -243,7 +243,7 @@ async function removeMember(memberId) {
 async function findMemberByName(name, excludeId = null) {
   const cleanName = (name || '').trim().toLowerCase();
   if (!cleanName) return null;
-  const query = excludeId 
+  const query = excludeId
     ? `SELECT * FROM Members WHERE LOWER(LTRIM(RTRIM(name))) = @n AND id != @excludeId`
     : `SELECT * FROM Members WHERE LOWER(LTRIM(RTRIM(name))) = @n`;
   const result = await executeQuery(query, { n: cleanName, excludeId });
@@ -256,7 +256,7 @@ async function findMemberByName(name, excludeId = null) {
 async function findMemberByEmail(email, excludeId = null) {
   const cleanEmail = (email || '').trim().toLowerCase();
   if (!cleanEmail) return null;
-  const query = excludeId 
+  const query = excludeId
     ? `SELECT * FROM Members WHERE LOWER(LTRIM(RTRIM(email))) = @e AND id != @excludeId`
     : `SELECT * FROM Members WHERE LOWER(LTRIM(RTRIM(email))) = @e`;
   const result = await executeQuery(query, { e: cleanEmail, excludeId });
