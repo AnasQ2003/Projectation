@@ -1,9 +1,13 @@
-# 🚀 PROJECTATION | Enterprise Software House Sprint, Deliverables & Project Management Hub
-
+<div align="center">
+  
+#  🚀 PROJECTATION
+### Enterprise Software House Sprint, Deliverables & Project Management Hub
 
 <p align="center">
   <strong>A modern, full-stack, enterprise-grade project and sprint lifecycle management platform engineered for software houses, technical leads, and engineering teams.</strong>
 </p>
+
+### 🌐 [**Live Demo → quickcalligraphy.vercel.app**](https://kaleidoscopic-crumble-f508cf.netlify.app/)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Frontend-React_18_%2B_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
@@ -12,6 +16,8 @@
   <img src="https://img.shields.io/badge/RealTime-Server--Sent_Events_(SSE)-0ea5e9?style=for-the-badge&logo=fastapi&logoColor=white" alt="SSE" />
   <img src="https://img.shields.io/badge/UI-Custom_Glassmorphism-2563eb?style=for-the-badge" alt="Glassmorphism" />
 </p>
+
+</div>
 
 ---
 
@@ -48,12 +54,12 @@
 
 ## 🔑 Roles & Authentication
 
-| Role | Default Username | Default Password | Description |
-| :--- | :--- | :--- | :--- |
-| **Super Admin** | `admin` | `admin123` | Full control: create projects, assign teams, edit sprint boards, configure categories, manage system users. |
-| **Team Member** | `ahmed` | `user123` | Contributor access: view personal workspaces, update deliverable statuses, log notes, live notifications. |
-| **Team Member** | `sarah` | `user123` | Frontend Engineer portal. |
-| **Team Member** | `david` | `user123` | Backend Specialist portal. |
+| Role | Default Username | Description |
+| :--- | :--- | :--- |
+| **Super Admin** | `admin` | Full control: create projects, assign teams, edit sprint boards, configure categories, manage system users. |
+| **Team Member** | `ahmed` | Contributor access: view personal workspaces, update deliverable statuses, log notes, live notifications. |
+| **Team Member** | `sarah` | Frontend Engineer portal. |
+| **Team Member** | `david` | Backend Specialist portal. |
 
 ---
 
@@ -479,4 +485,38 @@ npm run build
 ---
 
 ## 📄 License
-This project is open-source and available under the [MIT License](LICENSE).
+
+```
+MIT License
+
+Copyright (c) Projectation --- 2026 AnasQ2003🚀
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+```
+
+---
+
+## 👨‍💻 Author
+
+**Anas Ahmed Qureshi.** — [@AnasQ2003](https://github.com/AnasQ2003)
+
+---
+
+<div align="center">
+  <p>Built with ❤️ by <strong>Anas</strong></p>
+  
+ <div align="center">
+
+Made with 🔥 and a lot of ☕
