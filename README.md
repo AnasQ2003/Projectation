@@ -1,8 +1,5 @@
 # 🚀 PROJECTATION | Enterprise Software House Sprint, Deliverables & Project Management Hub
 
-<p align="center">
-  <img src="screenshots/Screenshot%202026-10-28%20202926.png" alt="Projectation Dashboard Banner" width="100%" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);" />
-</p>
 
 <p align="center">
   <strong>A modern, full-stack, enterprise-grade project and sprint lifecycle management platform engineered for software houses, technical leads, and engineering teams.</strong>
