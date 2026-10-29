@@ -9,12 +9,17 @@
 </p>
 
 <p align="center">
+  <a href="https://projectation-sprint-hub-492.netlify.app" target="_blank">
+    <img src="https://img.shields.io/badge/Live_Demo-Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white" alt="Live Demo on Netlify" />
+  </a>
   <img src="https://img.shields.io/badge/Frontend-React_18_%2B_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
   <img src="https://img.shields.io/badge/Backend-Node.js_%2B_Express-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" />
   <img src="https://img.shields.io/badge/Database-Microsoft_SQL_Server_(SSMS)-CC292B?style=for-the-badge&logo=microsoftsqlserver&logoColor=white" alt="SQL Server" />
   <img src="https://img.shields.io/badge/RealTime-Server--Sent_Events_(SSE)-0ea5e9?style=for-the-badge&logo=fastapi&logoColor=white" alt="SSE" />
   <img src="https://img.shields.io/badge/UI-Custom_Glassmorphism-2563eb?style=for-the-badge" alt="Glassmorphism" />
 </p>
+
+🌐 **Live Production Deployment**: [https://projectation-sprint-hub-492.netlify.app](https://projectation-sprint-hub-492.netlify.app)
 
 ---
 

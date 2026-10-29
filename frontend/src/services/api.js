@@ -1,7 +1,8 @@
 
 import { encryptTransportPayload, decryptTransportPayload, decryptClientData } from '../utils/crypto';
+import { handleMockRequest } from './mockBackend';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // ─── In-Memory Response Cache (30s TTL) for instant navigation ─────────────────
 const _cache = new Map();
@@ -124,10 +125,12 @@ async function request(url, options = {}) {
       res = await fetch(url, fetchOptions);
     } catch (netErr) {
       const ms = Math.round(performance.now() - t0);
-      console.error(`%c✗ ${method} ${endpoint} %c[NETWORK ERROR] %c${ms}ms`, 'color:#ef4444;font-weight:700', 'color:#dc2626;font-weight:600', 'color:#64748b');
-      lastError = new Error('Network connection failed. Ensure backend server is running on port 5000.');
-      if (attempt < retries) continue;
-      throw lastError;
+      console.warn(`%c↺ [OFFLINE / DEMO FALLBACK] ${method} ${endpoint}`, 'color:#f59e0b;font-weight:700');
+      // When network fails (e.g. deployed on Netlify without reachable localhost backend),
+      // smoothly serve from the in-browser database!
+      const mockResult = handleMockRequest(endpoint, options.body);
+      setCache(cacheKey, mockResult);
+      return mockResult;
     }
 
     let raw = await res.json().catch(() => ({}));
@@ -342,6 +345,10 @@ export const api = {
 
   // ── 14. SSE Real-Time Events Stream ──
   connectSSEStream(role, userIdentifiers, onEvent, onConnected, onError) {
+    if (typeof EventSource === 'undefined' || (API_BASE_URL.includes('localhost') && typeof window !== 'undefined' && window.location.hostname !== 'localhost')) {
+      if (onConnected) setTimeout(onConnected, 200);
+      return { close: () => {} };
+    }
     const { userName = '', userEmail = '', userUsername = '' } = userIdentifiers || {};
     const params = new URLSearchParams({ role, userName, userEmail, userUsername });
     const url = `${API_BASE_URL}/events/stream?${params.toString()}`;
