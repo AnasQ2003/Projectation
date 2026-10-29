@@ -7,7 +7,7 @@
   <strong>A modern, full-stack, enterprise-grade project and sprint lifecycle management platform engineered for software houses, technical leads, and engineering teams.</strong>
 </p>
 
-### 🌐 [**Live Demo → projectation.vercel.app**](https://projectation-sern.netlify.app/)
+### 🌐 [**Live Demo → Projectation**](https://projectation-sern.netlify.app/)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Frontend-React_18_%2B_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
