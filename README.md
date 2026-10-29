@@ -7,7 +7,7 @@
   <strong>A modern, full-stack, enterprise-grade project and sprint lifecycle management platform engineered for software houses, technical leads, and engineering teams.</strong>
 </p>
 
-### 🌐 [**Live Demo → quickcalligraphy.vercel.app**](https://kaleidoscopic-crumble-f508cf.netlify.app/)
+### 🌐 [**Live Demo → projectation.vercel.app**](https://projectation-sprint-hub-492.netlify.app/)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Frontend-React_18_%2B_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
@@ -54,12 +54,12 @@
 
 ## 🔑 Roles & Authentication
 
-| Role | Default Username | Description |
+| Role | Default Username + Password | Description |
 | :--- | :--- | :--- |
-| **Super Admin** | `admin` | Full control: create projects, assign teams, edit sprint boards, configure categories, manage system users. |
-| **Team Member** | `ahmed` | Contributor access: view personal workspaces, update deliverable statuses, log notes, live notifications. |
-| **Team Member** | `sarah` | Frontend Engineer portal. |
-| **Team Member** | `david` | Backend Specialist portal. |
+| **Super Admin** | `admin` + `admin123`| Full control: create projects, assign teams, edit sprint boards, configure categories, manage system users. |
+| **Team Member** | `ahmed` + `user123`| Contributor access: view personal workspaces, update deliverable statuses, log notes, live notifications. |
+| **Team Member** | `sarah` + `user123` | Frontend Engineer portal. |
+| **Team Member** | `david` + `user123`| Backend Specialist portal. |
 
 ---
 
